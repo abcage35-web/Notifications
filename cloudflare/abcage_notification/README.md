@@ -15,10 +15,10 @@ GitHub Actions then runs the existing Python report sender, which sends the Pach
 Cloudflare cron:
 
 ```text
-15 14 * * *
+31 14 * * *
 ```
 
-This is `17:15 MSK`.
+This is `17:31 MSK`.
 
 ## Secrets
 

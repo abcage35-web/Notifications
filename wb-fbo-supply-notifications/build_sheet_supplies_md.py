@@ -758,6 +758,7 @@ def main():
         (0, "проверить цену / включить РК / включить БЗО"),
         (1, "проверить цену"),
     ]
+    message_item_separator = "-----------------------------------------------"
     action_lines = []
     action_items = []
     for offset, action in action_rules:
@@ -778,7 +779,8 @@ def main():
             action_lines.append("")
         title = "ВЧЕРА и СЕГОДНЯ" if offset == 0 else label(d).upper()
         action_lines.append(f"**{title} ({action}):**")
-        for article, info in sorted(items, key=lambda x: ((x[1]["fbo"] - x[1]["qty"]) if offset == 0 else x[1]["fbo"], -x[1]["qty"], str(x[0]))):
+        sorted_items = sorted(items, key=lambda x: ((x[1]["fbo"] - x[1]["qty"]) if offset == 0 else x[1]["fbo"], -x[1]["qty"], str(x[0])))
+        for index, (article, info) in enumerate(sorted_items):
             supply = (
                 f"`{info['fbo']}` (`+{info['qty']}`)"
                 if offset == 0
@@ -798,6 +800,8 @@ def main():
                     **info,
                 }
             )
+            if index < len(sorted_items) - 1:
+                action_lines.append(message_item_separator)
     if not action_lines:
         action_lines.append("Нет товаров под условия: поставка запланирована и остаток FBO < 100.")
     action_lines = ["**ПОСТАВКИ FBO WB**", ""] + action_lines

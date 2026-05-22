@@ -26,7 +26,7 @@ Generated report files are ignored by git.
 
 GitHub Actions workflow `.github/workflows/wb-fbo-supply-notifications.yml` is started manually through `workflow_dispatch`.
 
-The daily schedule is owned by Cloudflare Worker `cloudflare/abcage_notification`, which calls GitHub's workflow dispatch API every day at 17:15 Moscow time (`14:15 UTC`).
+The daily schedule is owned by Cloudflare Worker `cloudflare/abcage_notification`, which calls GitHub's workflow dispatch API every day at 17:31 Moscow time (`14:31 UTC`).
 
 Required repository secrets:
 

@@ -83,8 +83,8 @@ gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --repo abcage35-web/Notifications < /p
 Текущая автоматизация работает через Cloudflare Worker + GitHub Actions:
 
 - Cloudflare Worker: `cloudflare/abcage_notification`;
-- Cloudflare cron: каждый день в `17:15 Moscow time (MSK)`;
-- cron в UTC: `15 14 * * *`;
+- Cloudflare cron: каждый день в `17:31 Moscow time (MSK)`;
+- cron в UTC: `31 14 * * *`;
 - Worker вызывает GitHub `workflow_dispatch`;
 - GitHub Actions workflow сам собирает отчет, отправляет сообщение и Markdown-файл в Пачку, затем сохраняет артефакт в GitHub Actions;
 - ручной запуск GitHub Actions через `workflow_dispatch` остается доступен.
@@ -450,6 +450,8 @@ feedbackPoints <= 0
 **ВЧЕРА и СЕГОДНЯ (проверить цену / включить РК / включить БЗО):**
 `333` (`+336`) / `679796751` / Коврик детский 2.3 складной 150x200 город
 ↳ РК: **ПРОВЕРИТЬ АКТИВНОСТЬ РК** (*траты 3д: 1 ₽*) / @a.nekrasov
+-----------------------------------------------
+`574` (`+576`) / `485329903` / Вертолет на радиоуправлении 1.1
 
 **ЗАВТРА (проверить цену):**
 `0` -> `+2370` / `224652683` / Сачок для бассейна 1.1 - синий
@@ -457,6 +459,14 @@ feedbackPoints <= 0
 ```
 
 Артикул WB в сообщении оборачивается в backticks, чтобы его было удобно копировать.
+
+Между товарами внутри одного блока основного сообщения добавляется строка:
+
+```text
+-----------------------------------------------
+```
+
+Разделитель нужен только для визуального разрыва товаров в Пачке. Он не добавляется после последнего товара блока.
 
 ## Формат Markdown-файла
 
@@ -601,7 +611,7 @@ https://abcage_notification.abcage35.workers.dev
 
 Назначение Worker:
 
-- запускаться по Cloudflare cron `15 14 * * *`;
+- запускаться по Cloudflare cron `31 14 * * *`;
 - вызывать GitHub REST API `workflow_dispatch`;
 - не собирать отчет самостоятельно;
 - не обращаться напрямую к WB, Google Sheets, MCP или Pachca;
