@@ -2,8 +2,8 @@ name: WB FBO Supply Notifications
 
 on:
   schedule:
-    # 08:00 Asia/Tbilisi, which is 04:00 UTC.
-    - cron: "0 4 * * *"
+    # 17:15 Moscow time (MSK, UTC+03:00), which is 14:15 UTC.
+    - cron: "15 14 * * *"
   workflow_dispatch:
 
 env:

@@ -24,7 +24,7 @@ Generated report files are ignored by git.
 
 ## Daily Automation
 
-GitHub Actions workflow `.github/workflows/wb-fbo-supply-notifications.yml` runs every day at 08:00 Asia/Tbilisi (`04:00 UTC`) and can also be started manually with `workflow_dispatch`.
+GitHub Actions workflow `.github/workflows/wb-fbo-supply-notifications.yml` runs every day at 17:15 Moscow time (`14:15 UTC`) and can also be started manually with `workflow_dispatch`.
 
 Required repository secrets:
 

@@ -82,8 +82,8 @@ gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --repo abcage35-web/Notifications < /p
 
 Текущая автоматизация работает через GitHub Actions:
 
-- расписание: каждый день в `08:00 Asia/Tbilisi`;
-- cron в UTC: `0 4 * * *`;
+- расписание: каждый день в `17:15 Moscow time (MSK)`;
+- cron в UTC: `15 14 * * *`;
 - ручной запуск: `workflow_dispatch`;
 - workflow сам собирает отчет, отправляет сообщение и Markdown-файл в Пачку, затем сохраняет артефакт в GitHub Actions.
 
