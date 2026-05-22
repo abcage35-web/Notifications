@@ -807,9 +807,7 @@ def main():
                 }
             )
             if index < len(sorted_items) - 1:
-                action_lines.append("")
                 action_lines.append(message_item_separator)
-                action_lines.append("")
     if not action_lines:
         action_lines.append("Нет товаров под условия: поставка запланирована и остаток FBO < 100.")
     action_lines = ["**ПОСТАВКИ FBO WB**", ""] + action_lines
@@ -850,10 +848,6 @@ def main():
         )
         for article, info in sorted(missing_marketer_by_article.items(), key=lambda x: str(x[0])):
             thread_lines.append(f"- `{article}` / {info['name']}")
-    else:
-        thread_lines.append(
-            "**@a.nekrasov, запрос на добавление ответственных маркетологов не требуется: по всем артикулам из текстовой сводки маркетологи указаны.**"
-        )
 
     summary_lines.append("# ЗАПРОС НА ДОБАВЛЕНИЕ ОТВЕТСТВЕННЫХ МАРКЕТОЛОГОВ")
     summary_lines.append("")

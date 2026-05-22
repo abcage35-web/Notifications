@@ -81,7 +81,7 @@ export default {
       return jsonResponse({
         ok: true,
         worker: "abcage_notification",
-        schedule: "31 14 * * *",
+        schedule: "0 5 * * *",
       });
     }
 

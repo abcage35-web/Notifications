@@ -17,10 +17,10 @@ GitHub can return either `204 No Content` or `200 OK` with a `workflow_run_id`; 
 Cloudflare cron:
 
 ```text
-31 14 * * *
+0 5 * * *
 ```
 
-This is `17:31 MSK`.
+This is `08:00 MSK`.
 
 ## Secrets
 
