@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+
+# Generated reports and local exports
+pachca_*.md
+pachca_*.json
+wb_*.md
+fbo_wb_report_logic_*.md
+responsible_marketers_request_example_*.md
+*.summary.json
