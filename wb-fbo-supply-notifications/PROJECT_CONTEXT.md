@@ -80,16 +80,18 @@ gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --repo abcage35-web/Notifications < /p
 
 ## Автоматизация
 
-Текущая автоматизация работает через GitHub Actions:
+Текущая автоматизация работает через Cloudflare Worker + GitHub Actions:
 
-- расписание: каждый день в `17:15 Moscow time (MSK)`;
+- Cloudflare Worker: `cloudflare/abcage_notification`;
+- Cloudflare cron: каждый день в `17:15 Moscow time (MSK)`;
 - cron в UTC: `15 14 * * *`;
-- ручной запуск: `workflow_dispatch`;
-- workflow сам собирает отчет, отправляет сообщение и Markdown-файл в Пачку, затем сохраняет артефакт в GitHub Actions.
+- Worker вызывает GitHub `workflow_dispatch`;
+- GitHub Actions workflow сам собирает отчет, отправляет сообщение и Markdown-файл в Пачку, затем сохраняет артефакт в GitHub Actions;
+- ручной запуск GitHub Actions через `workflow_dispatch` остается доступен.
 
 В workflow включен `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`, чтобы стандартные GitHub Actions запускались на Node 24 runtime.
 
-Важный нюанс: GitHub scheduled workflows не гарантируют запуск секунда-в-секунду. GitHub может задержать schedule при высокой нагрузке, особенно в начале часа. Если нужна более надежная cron-инфраструктура, проект можно переносить в Cloudflare Workers, но текущий Python-код нельзя перенести туда без портирования, потому что он использует subprocess и `npx mcp-remote`.
+В GitHub Actions прямой `schedule` отключен, чтобы Cloudflare cron и GitHub schedule не отправляли дубль. GitHub workflow должен запускаться через `workflow_dispatch`: вручную или из Cloudflare Worker.
 
 ## Источники данных
 
@@ -573,7 +575,7 @@ pachca_fbo_supplies_sheet_YYYY-MM-DD.json
 python send_pachca_report.py
 ```
 
-Для проверки GitHub Actions без изменения расписания лучше использовать `workflow_dispatch`. Не добавлять временный cron "через 5 минут" как основной способ проверки: GitHub schedule может не подхватить изменение сразу и часто задерживает запуск около начала часа.
+Для проверки GitHub Actions без изменения расписания лучше использовать `workflow_dispatch` или защищенный endpoint Cloudflare Worker `/dispatch`. Не добавлять временный cron "через 5 минут" как основной способ проверки: GitHub schedule может не подхватить изменение сразу и часто задерживает запуск около начала часа.
 
 ## Безопасность
 
@@ -583,9 +585,55 @@ python send_pachca_report.py
 - `ABCAGE_ANALYZER_TOKEN` хранить только в GitHub Secrets или локальном `~/.codex/config.toml`.
 - Не выводить секреты в логи.
 
-## Возможный перенос в Cloudflare
+## Cloudflare dispatcher
 
-Cloudflare Workers лучше подходит для постоянного cron-бота, но текущий проект нельзя просто скопировать туда как есть.
+Текущий Cloudflare Worker называется `abcage_notification` и лежит в:
+
+```text
+cloudflare/abcage_notification/
+```
+
+Production URL:
+
+```text
+https://abcage_notification.abcage35.workers.dev
+```
+
+Назначение Worker:
+
+- запускаться по Cloudflare cron `15 14 * * *`;
+- вызывать GitHub REST API `workflow_dispatch`;
+- не собирать отчет самостоятельно;
+- не обращаться напрямую к WB, Google Sheets, MCP или Pachca;
+- оставить всю бизнес-логику в Python/GitHub Actions.
+
+Cloudflare Worker secrets:
+
+- `GITHUB_TOKEN` - GitHub token с доступом к запуску workflow;
+- `DISPATCH_SECRET` - bearer token для ручного endpoint `/dispatch`.
+
+Endpoint:
+
+- `GET /health` - безопасная проверка доступности, отчет не запускает;
+- `POST /dispatch` - запускает реальный GitHub workflow и отправку отчета, требует `Authorization: Bearer <DISPATCH_SECRET>`.
+
+Команда деплоя:
+
+```bash
+cd cloudflare/abcage_notification
+npx wrangler deploy
+```
+
+Секреты задаются так:
+
+```bash
+npx wrangler secret put GITHUB_TOKEN
+npx wrangler secret put DISPATCH_SECRET
+```
+
+### Почему не весь отчет в Cloudflare
+
+Cloudflare Workers лучше подходит для постоянного cron-бота, но текущий Python-проект нельзя просто скопировать туда как есть.
 
 Причины:
 
@@ -594,11 +642,11 @@ Cloudflare Workers лучше подходит для постоянного cro
 - MCP подключается через `npx mcp-remote`;
 - Cloudflare Workers не запускают локальные процессы и `npx`.
 
-Варианты переноса:
+Если когда-нибудь переносить всю бизнес-логику в Cloudflare, варианты такие:
 
 1. Переписать сборщик на TypeScript Worker и обращаться к MCP/analyzer как к HTTP/JSON-RPC endpoint без `npx`.
 2. Вынести Google Sheets в Apps Script, который будет передавать данные в Cloudflare KV/D1, а Worker будет собирать WB/MCP/Pachca-часть.
-3. Оставить GitHub Actions как рабочий вариант, а Cloudflare сделать позже как отдельный runtime.
+3. Оставить текущую гибридную схему: Cloudflare cron -> GitHub workflow_dispatch -> Python sender.
 
 Если переносить, сначала нужно декомпозировать текущие функции Python на независимые слои:
 

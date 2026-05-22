@@ -22,9 +22,11 @@ The scripts intentionally do not store API tokens in the repository.
 
 Generated report files are ignored by git.
 
-## Daily Automation
+## Automation
 
-GitHub Actions workflow `.github/workflows/wb-fbo-supply-notifications.yml` runs every day at 17:15 Moscow time (`14:15 UTC`) and can also be started manually with `workflow_dispatch`.
+GitHub Actions workflow `.github/workflows/wb-fbo-supply-notifications.yml` is started manually through `workflow_dispatch`.
+
+The daily schedule is owned by Cloudflare Worker `cloudflare/abcage_notification`, which calls GitHub's workflow dispatch API every day at 17:15 Moscow time (`14:15 UTC`).
 
 Required repository secrets:
 

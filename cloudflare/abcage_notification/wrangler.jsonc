@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "abcage_notification",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-22",
+  "triggers": {
+    "crons": ["15 14 * * *"]
+  },
+  "vars": {
+    "GITHUB_OWNER": "abcage35-web",
+    "GITHUB_REPO": "Notifications",
+    "GITHUB_WORKFLOW_ID": "wb-fbo-supply-notifications.yml",
+    "GITHUB_REF": "main"
+  }
+}
