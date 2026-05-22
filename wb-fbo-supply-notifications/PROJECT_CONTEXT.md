@@ -631,6 +631,8 @@ Endpoint:
 - `GET /health` - безопасная проверка доступности, отчет не запускает;
 - `POST /dispatch` - запускает реальный GitHub workflow и отправку отчета, требует `Authorization: Bearer <DISPATCH_SECRET>`.
 
+GitHub API при успешном dispatch может вернуть `204 No Content` или `200 OK` с `workflow_run_id`. Оба ответа должны считаться успешными. Не делать retry только из-за `200 OK`, иначе можно создать несколько одинаковых отчетов.
+
 Команда деплоя:
 
 ```bash

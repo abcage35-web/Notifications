@@ -10,6 +10,8 @@ The Worker does not build or send the Pachca report itself. It only calls GitHub
 
 GitHub Actions then runs the existing Python report sender, which sends the Pachca message, Markdown file and optional thread message.
 
+GitHub can return either `204 No Content` or `200 OK` with a `workflow_run_id`; both are treated as successful dispatches.
+
 ## Schedule
 
 Cloudflare cron:

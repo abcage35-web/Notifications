@@ -43,8 +43,17 @@ async function dispatchWorkflow(env, source) {
     body: JSON.stringify({ ref }),
   });
 
-  if (response.status !== 204) {
-    const body = await response.text();
+  const body = await response.text();
+  let payload = {};
+  if (body) {
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      payload = { body };
+    }
+  }
+
+  if (!response.ok) {
     throw new Error(
       `GitHub workflow_dispatch failed: ${response.status} ${response.statusText} ${body}`,
     );
@@ -53,6 +62,9 @@ async function dispatchWorkflow(env, source) {
   return {
     ok: true,
     source,
+    githubStatus: response.status,
+    workflowRunId: payload.workflow_run_id,
+    runUrl: payload.html_url || payload.run_url,
     owner,
     repo,
     workflowId,
