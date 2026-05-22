@@ -2,6 +2,8 @@
 
 Subproject for WB FBO supply notifications and Pachca-ready Markdown reports.
 
+For detailed continuation context, data-source mapping, business rules and deployment notes, read [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md).
+
 ## Scripts
 
 - `build_sheet_supplies_md.py` builds the current FBO supply report, text message, thread message and JSON export.
