@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 REPORT_TZ = ZoneInfo(os.getenv("REPORT_TZ", "Asia/Tbilisi"))
 START = datetime.now(REPORT_TZ).date()
 STRICT_SOURCE_LOADING = os.getenv("STRICT_SOURCE_LOADING", "1") != "0"
+REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "08:00 по МСК")
 MARKETER_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/"
     "1STPnPgj8xSrvN-F3K96bDj_pmunCICHTjaj358pRaB4"
@@ -754,10 +755,7 @@ def main():
                 )
         lines.append("")
 
-    action_rules = [
-        (0, "проверить цену / включить РК / включить БЗО"),
-        (1, "проверить цену"),
-    ]
+    action_rules = [0, 1]
     message_item_separator = "\\-----------------------------------------------"
 
     def pachca_message_text(lines_to_render):
@@ -767,7 +765,7 @@ def main():
 
     action_lines = []
     action_items = []
-    for offset, action in action_rules:
+    for offset in action_rules:
         d = START + timedelta(days=offset)
         items = [
             (article, info)
@@ -784,7 +782,7 @@ def main():
         if action_lines:
             action_lines.append("")
         title = "ВЧЕРА и СЕГОДНЯ" if offset == 0 else label(d).upper()
-        action_lines.append(f"**{title} ({action}):**")
+        action_lines.append(f"**{title}:**")
         sorted_items = sorted(items, key=lambda x: ((x[1]["fbo"] - x[1]["qty"]) if offset == 0 else x[1]["fbo"], -x[1]["qty"], str(x[0])))
         for index, (article, info) in enumerate(sorted_items):
             supply = (
@@ -810,7 +808,7 @@ def main():
                 action_lines.append(message_item_separator)
     if not action_lines:
         action_lines.append("Нет товаров под условия: поставка запланирована и остаток FBO < 100.")
-    action_lines = ["**ПОСТАВКИ FBO WB**", ""] + action_lines
+    action_lines = [f"**ПОСТАВКИ FBO WB (отчет {REPORT_RUN_LABEL})**", ""] + action_lines
 
     summary_lines = [
         "# ТОВАРЫ ИЗ ТЕКСТОВОЙ СВОДКИ",

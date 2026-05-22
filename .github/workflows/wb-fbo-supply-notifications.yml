@@ -19,6 +19,7 @@ jobs:
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
       PACHCA_CHAT_ID: ${{ secrets.PACHCA_CHAT_ID }}
+      REPORT_RUN_LABEL: 08:00 по МСК
     steps:
       - uses: actions/checkout@v4
 

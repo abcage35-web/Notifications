@@ -19,6 +19,7 @@ The scripts intentionally do not store API tokens in the repository.
 - `PACHCA_TOKEN` is used to send messages/files through Pachca.
 - `PACHCA_CHAT_ID` is the Pachca discussion id that receives the report.
 - `REPORT_TZ` can override the report timezone, default is `Asia/Tbilisi`.
+- `REPORT_RUN_LABEL` is shown in the Pachca message title, default is `08:00 по МСК`.
 
 Generated report files are ignored by git.
 
