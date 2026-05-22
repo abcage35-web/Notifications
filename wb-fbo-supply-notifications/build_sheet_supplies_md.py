@@ -674,6 +674,9 @@ def main():
     def message_manager_label(info):
         return "`не указан менеджер`" if info.get("manager") == "-" else info["manager"]
 
+    def bzo_message_recipient_label(info):
+        return f"{message_manager_label(info)} / @e.khanzhova"
+
     def price_label(value):
         amount = int(round(float(value or 0)))
         return rub(amount) if amount > 0 else "-"
@@ -710,7 +713,7 @@ def main():
             )
         if needs_bzo_action(info):
             recommendations.append(
-                f"БЗО: **ВКЛЮЧИТЬ БЗО** (*отзывы: {reviews_label(info)} ({rating_label(info)} ★)*) / {message_manager_label(info)}"
+                f"БЗО: **ВКЛЮЧИТЬ БЗО** (*отзывы: {reviews_label(info)} ({rating_label(info)} ★)*) / {bzo_message_recipient_label(info)}"
             )
         if not info.get("rk_created"):
             recommendations.append(
