@@ -675,7 +675,7 @@ def main():
         return "`не указан менеджер`" if info.get("manager") == "-" else info["manager"]
 
     def bzo_message_recipient_label(info):
-        return f"{message_manager_label(info)} / @e.khanzhova"
+        return f"{message_manager_label(info)} / @Елена Ханжова"
 
     def price_label(value):
         amount = int(round(float(value or 0)))
