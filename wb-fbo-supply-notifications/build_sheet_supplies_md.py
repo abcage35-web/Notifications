@@ -704,18 +704,20 @@ def main():
     def message_recommendations(info, check_price=False, include_rk_activity=True):
         recommendations = []
         if check_price:
-            recommendations.append(f"ЦЕНА: **ПРОВЕРИТЬ ЦЕНУ** ({price_spp_label(info)}) / {message_manager_label(info)}")
+            recommendations.append(
+                f"ЦЕНА: **ПРОВЕРИТЬ ЦЕНУ** (*цена / спп: {price_spp_label(info)}*) / {message_manager_label(info)}"
+            )
         if needs_bzo_action(info):
             recommendations.append(
-                f"БЗО: **ВКЛЮЧИТЬ БЗО** / {reviews_label(info)} ({rating_label(info)} ★) / {message_manager_label(info)}"
+                f"БЗО: **ВКЛЮЧИТЬ БЗО** (*отзывы: {reviews_label(info)} ({rating_label(info)} ★)*) / {message_manager_label(info)}"
             )
         if not info.get("rk_created"):
             recommendations.append(
-                f"РК: **{underline_text('СОЗДАТЬ РК')}** (траты 3д: {rub(info.get('ad_spend_3d'))}) / {message_marketer_label(info)}"
+                f"РК: **{underline_text('СОЗДАТЬ РК')}** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) / {message_marketer_label(info)}"
             )
         elif include_rk_activity and float(info.get("ad_spend_3d") or 0) < 3000:
             recommendations.append(
-                f"РК: **ПРОВЕРИТЬ АКТИВНОСТЬ РК** (траты 3д: {rub(info.get('ad_spend_3d'))}) / {message_marketer_label(info)}"
+                f"РК: **ПРОВЕРИТЬ АКТИВНОСТЬ РК** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) / {message_marketer_label(info)}"
             )
         return recommendations
 
