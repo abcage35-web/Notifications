@@ -29,3 +29,10 @@
 - нужен ли тред и кого тегать.
 
 Подробный рабочий контекст будет в `PROJECT_CONTEXT.md`.
+
+## Pachca Chats
+
+- Test chat: `39363429`.
+- Production chat: `36815841`.
+
+New notification logic should be tested in the test chat first, then switched to production after confirmation.
