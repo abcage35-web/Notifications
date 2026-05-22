@@ -758,7 +758,13 @@ def main():
         (0, "проверить цену / включить РК / включить БЗО"),
         (1, "проверить цену"),
     ]
-    message_item_separator = "-----------------------------------------------"
+    message_item_separator = "\\-----------------------------------------------"
+
+    def pachca_message_text(lines_to_render):
+        # Pachca treats regular Markdown newlines as soft breaks in some messages.
+        # Two trailing spaces force a hard line break while keeping readable source files.
+        return "\n".join(f"{line}  " if line else "" for line in lines_to_render).rstrip()
+
     action_lines = []
     action_items = []
     for offset, action in action_rules:
@@ -801,7 +807,9 @@ def main():
                 }
             )
             if index < len(sorted_items) - 1:
+                action_lines.append("")
                 action_lines.append(message_item_separator)
+                action_lines.append("")
     if not action_lines:
         action_lines.append("Нет товаров под условия: поставка запланирована и остаток FBO < 100.")
     action_lines = ["**ПОСТАВКИ FBO WB**", ""] + action_lines
@@ -842,10 +850,14 @@ def main():
         )
         for article, info in sorted(missing_marketer_by_article.items(), key=lambda x: str(x[0])):
             thread_lines.append(f"- `{article}` / {info['name']}")
+    else:
+        thread_lines.append(
+            "**@a.nekrasov, запрос на добавление ответственных маркетологов не требуется: по всем артикулам из текстовой сводки маркетологи указаны.**"
+        )
 
     summary_lines.append("# ЗАПРОС НА ДОБАВЛЕНИЕ ОТВЕТСТВЕННЫХ МАРКЕТОЛОГОВ")
     summary_lines.append("")
-    if thread_lines:
+    if missing_marketer_by_article:
         summary_lines.extend(thread_lines)
         summary_lines.append("")
         summary_lines.append("Список артикулов для копирования:")
@@ -870,7 +882,8 @@ def main():
     out_thread_message = ROOT / f"pachca_fbo_supplies_sheet_{report_date}_thread.md"
     out_json = ROOT / f"pachca_fbo_supplies_sheet_{report_date}.json"
     out.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
-    out_message.write_text("\n".join(action_lines).rstrip() + "\n", encoding="utf-8")
+    rendered_message = pachca_message_text(action_lines)
+    out_message.write_text(rendered_message + "\n", encoding="utf-8")
     out_thread_message.write_text("\n".join(thread_lines).rstrip() + "\n", encoding="utf-8")
     out_json.write_text(
         json.dumps(
@@ -880,7 +893,7 @@ def main():
                     for (d, a), info in grouped.items()
                 ],
                 "unresolved": unresolved,
-                "message": "\n".join(action_lines).rstrip(),
+                "message": rendered_message,
                 "thread_message": "\n".join(thread_lines).rstrip(),
             },
             ensure_ascii=False,
