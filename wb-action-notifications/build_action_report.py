@@ -436,7 +436,7 @@ def build_segments(items):
 
 def build_outputs(items):
     segments = build_segments(items)
-    message_lines = [f"**ДЕЙСТВИЯ WB (отчет {REPORT_RUN_LABEL})**", ""]
+    message_lines = [f"**ПРЕДУСТАНОВЛЕННЫЕ ДЕЙСТВИЯ WB (отчет {REPORT_RUN_LABEL})**", ""]
     md_lines = [
         "# Действия WB",
         "",

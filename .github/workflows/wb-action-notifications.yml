@@ -6,7 +6,7 @@ on:
       pachca_chat_id:
         description: "Optional Pachca chat id override for manual/backup runs"
         required: false
-        default: "39363429"
+        default: ""
         type: string
       report_run_label:
         description: "Optional label shown in the Pachca report title"
