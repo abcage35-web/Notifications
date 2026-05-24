@@ -51,3 +51,32 @@ curl -X POST "$WORKER_URL/dispatch" \
 ```
 
 This manual test triggers the real GitHub workflow, so it will send the report to Pachca.
+
+To send a backup report to a specific Pachca chat without changing GitHub Secrets:
+
+```bash
+curl -X POST "$WORKER_URL/dispatch" \
+  -H "Authorization: Bearer $DISPATCH_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"chat_id":"39363429","report_run_label":"ручной запуск"}'
+```
+
+## Pachca Backup Command
+
+The Worker also exposes:
+
+```text
+POST /pachca-command?secret=<DISPATCH_SECRET>
+```
+
+Supported command text:
+
+```text
+/fbo
+/fbo-now
+/фбо
+фбо
+поставки fbo
+```
+
+When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the same GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.
