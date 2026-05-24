@@ -34,6 +34,10 @@ def article_md(article):
     return f"`{md_cell(article)}`"
 
 
+def code_value(value):
+    return f"`{str(value).replace('`', '').strip()}`"
+
+
 def rub(value):
     return f"{int(round(float(value or 0))):,}".replace(",", " ") + " ₽"
 
@@ -62,6 +66,18 @@ def price_spp_label(info):
         spp_percent = round((1 - price_with_spp / price_before_spp) * 100)
     spp_label = f" ({int(round(spp_percent))}%)" if price_with_spp > 0 and spp_percent > 0 else ""
     return f"{money_or_dash(price_before_spp)} / {money_or_dash(price_with_spp)}{spp_label}"
+
+
+def price_spp_message_label(info):
+    price_before_spp = float(info.get("price_before_spp") or 0)
+    price_with_spp = float(info.get("price_with_spp") or 0)
+    spp_percent = float(info.get("spp_percent") or 0)
+    if not spp_percent and price_before_spp > 0 and price_with_spp > 0:
+        spp_percent = round((1 - price_with_spp / price_before_spp) * 100)
+    price_with_spp_label = money_or_dash(price_with_spp)
+    if price_with_spp > 0 and spp_percent > 0:
+        price_with_spp_label = f"{price_with_spp_label} ({int(round(spp_percent))}%)"
+    return f"{code_value(money_or_dash(price_before_spp))} / {code_value(price_with_spp_label)}"
 
 
 def reviews_rating_label(info):
@@ -312,27 +328,27 @@ def is_disable_rk_action(info):
 
 
 def message_item_line(action, info):
-    base = f"• {info['article']} / FBO: {int(info.get('fbo') or 0)}"
+    base = f"• {code_value(info['article'])} / FBO: {code_value(int(info.get('fbo') or 0))}"
     if action == "price":
-        return f"{base} / цена / спп: {price_spp_label(info)} / {info['name']} {message_manager_label(info)}"
+        return f"{base} / цена / спп: {price_spp_message_label(info)} / {info['name']} {message_manager_label(info)}"
     if action == "bzo":
         return (
-            f"{base} / отзывы: {reviews_rating_label(info)} / "
+            f"{base} / отзывы: {code_value(reviews_rating_label(info))} / "
             f"{info['name']} {bzo_message_recipient_label(info)}"
         )
     if action == "create_rk":
-        return f"{base} / траты 3д: {rub(info.get('ad_spend_3d'))} / {info['name']} {message_marketer_label(info)}"
+        return f"{base} / траты 3д: {code_value(rub(info.get('ad_spend_3d')))} / {info['name']} {message_marketer_label(info)}"
     if action == "check_rk":
         return (
-            f"{base} / траты 3д: {rub(info.get('ad_spend_3d'))} / "
+            f"{base} / траты 3д: {code_value(rub(info.get('ad_spend_3d')))} / "
             f"{info['name']} {message_marketer_label(info)}"
         )
     if action == "disable_rk":
         return (
-            f"{base} / оборачиваемость 3д: {number(info.get('turnover_3d'))} д / "
-            f"траты 3д: {rub(info.get('ad_spend_3d_excl_today'))} / "
-            f"ДРР 3д: {pct(info.get('drr_3d_excl_today'))} / "
-            f"ближайшая поставка: {nearest_supply_label(info)} / "
+            f"{base} / оборачиваемость 3д: {code_value(number(info.get('turnover_3d')) + ' д')} / "
+            f"траты 3д: {code_value(rub(info.get('ad_spend_3d_excl_today')))} / "
+            f"ДРР 3д: {code_value(pct(info.get('drr_3d_excl_today')))} / "
+            f"ближайшая поставка: {code_value(nearest_supply_label(info))} / "
             f"{info['name']} {message_marketer_label(info)}"
         )
     return "-"
