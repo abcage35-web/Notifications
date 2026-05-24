@@ -25,6 +25,30 @@ function isAuthorized(request, env, url) {
   return authorization === `Bearer ${secret}` || headerSecret === secret || querySecret === secret;
 }
 
+function toHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function hasValidPachcaSignature(request, env, rawBody) {
+  const secret = env.PACHCA_WEBHOOK_SECRET;
+  const signature = request.headers.get("pachca-signature") || "";
+  if (!secret || !signature || !rawBody) {
+    return false;
+  }
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  return toHex(digest) === signature;
+}
+
 function cleanInputs(inputs = {}) {
   return Object.fromEntries(
     Object.entries(inputs)
@@ -33,8 +57,7 @@ function cleanInputs(inputs = {}) {
   );
 }
 
-async function readJson(request) {
-  const text = await request.text();
+function parseJson(text) {
   if (!text) {
     return {};
   }
@@ -43,6 +66,10 @@ async function readJson(request) {
   } catch {
     return {};
   }
+}
+
+async function readJson(request) {
+  return parseJson(await request.text());
 }
 
 function pickFirstString(...values) {
@@ -165,12 +192,20 @@ export default {
     }
 
     if (request.method === "POST" && url.pathname === "/pachca-command") {
-      if (!isAuthorized(request, env, url)) {
+      const rawBody = await request.text();
+      const payload = parseJson(rawBody);
+
+      const webhookTimestamp = Number(payload.webhook_timestamp || 0);
+      const isFreshWebhook = webhookTimestamp
+        ? Math.abs(Date.now() / 1000 - webhookTimestamp) <= 120
+        : true;
+      const isPachcaSigned = isFreshWebhook && (await hasValidPachcaSignature(request, env, rawBody));
+
+      if (!isAuthorized(request, env, url) && !isPachcaSigned) {
         return jsonResponse({ ok: false, error: "unauthorized" }, 401);
       }
 
       try {
-        const payload = await readJson(request);
         const text = extractPachcaCommandText(payload);
         if (!isFboBackupCommand(text)) {
           return jsonResponse({ ok: true, ignored: true, reason: "not an FBO backup command" });

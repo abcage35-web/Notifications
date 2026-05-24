@@ -635,13 +635,14 @@ Cloudflare Worker secrets:
 
 - `GITHUB_TOKEN` - GitHub token с доступом к запуску workflow;
 - `DISPATCH_SECRET` - bearer token для ручного endpoint `/dispatch`.
+- `PACHCA_WEBHOOK_SECRET` - Signing secret исходящего webhook Пачки для endpoint `/pachca-command`.
 
 Endpoint:
 
 - `GET /health` - безопасная проверка доступности, отчет не запускает;
 - `POST /dispatch` - запускает реальный GitHub workflow и отправку отчета, требует `Authorization: Bearer <DISPATCH_SECRET>`.
 - `POST /dispatch` может принимать JSON `{"chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять отчет в указанный чат.
-- `POST /pachca-command?secret=<DISPATCH_SECRET>` - endpoint для резервной команды из Пачки. Поддерживаемая команда: `/фбо_уведомление`. Worker берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
+- `POST /pachca-command` - endpoint для резервной команды из Пачки. Поддерживаемая команда: `/фбо_уведомление`. Worker проверяет `Pachca-Signature`, берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
 
 GitHub API при успешном dispatch может вернуть `204 No Content` или `200 OK` с `workflow_run_id`. Оба ответа должны считаться успешными. Не делать retry только из-за `200 OK`, иначе можно создать несколько одинаковых отчетов.
 
@@ -657,6 +658,7 @@ npx wrangler deploy
 ```bash
 npx wrangler secret put GITHUB_TOKEN
 npx wrangler secret put DISPATCH_SECRET
+npx wrangler secret put PACHCA_WEBHOOK_SECRET
 ```
 
 ### Почему не весь отчет в Cloudflare

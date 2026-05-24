@@ -28,12 +28,14 @@ Required Cloudflare Worker secrets:
 
 - `GITHUB_TOKEN` - GitHub token that can create workflow dispatch events for `abcage35-web/Notifications`.
 - `DISPATCH_SECRET` - bearer token for protected manual HTTP dispatch.
+- `PACHCA_WEBHOOK_SECRET` - Pachca outgoing webhook signing secret for `/pachca-command`.
 
 Set them with:
 
 ```bash
 npx wrangler secret put GITHUB_TOKEN
 npx wrangler secret put DISPATCH_SECRET
+npx wrangler secret put PACHCA_WEBHOOK_SECRET
 ```
 
 ## Deploy
@@ -66,7 +68,7 @@ curl -X POST "$WORKER_URL/dispatch" \
 The Worker also exposes:
 
 ```text
-POST /pachca-command?secret=<DISPATCH_SECRET>
+POST /pachca-command
 ```
 
 Supported command text:
@@ -76,3 +78,5 @@ Supported command text:
 ```
 
 When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the same GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.
+
+The endpoint validates Pachca's `Pachca-Signature` header with `PACHCA_WEBHOOK_SECRET`.
