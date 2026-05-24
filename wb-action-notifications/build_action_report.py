@@ -333,7 +333,9 @@ def message_item_line(action, info):
         return f"{base} / Траты (3д): {code_value(rub(info.get('ad_spend_3d')))} / {info['name']} {message_marketer_label(info)}"
     if action == "check_rk":
         return (
-            f"{base} / Траты (3д): {code_value(rub(info.get('ad_spend_3d')))} / "
+            f"{base} / Обор-сть (3д): {code_value(number(info.get('turnover_3d')) + ' д')} / "
+            f"Траты (3д): {code_value(rub(info.get('ad_spend_3d')))} / "
+            f"ДРР (3д): {code_value(pct(info.get('drr_3d_excl_today')))} / "
             f"{info['name']} {message_marketer_label(info)}"
         )
     if action == "disable_rk":
