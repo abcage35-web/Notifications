@@ -308,28 +308,29 @@ def is_disable_rk_action(info):
     )
 
 
-def action_text(action, info):
+def message_item_line(action, info):
+    base = f"• {info['article']} / FBO: {int(info.get('fbo') or 0)}"
     if action == "price":
-        return f"ЦЕНА: **ПРОВЕРИТЬ ЦЕНУ** (*цена / спп: {price_spp_label(info)}*) / {message_manager_label(info)}"
+        return f"{base} / цена / спп: {price_spp_label(info)} / {info['name']} {message_manager_label(info)}"
     if action == "bzo":
         return (
-            f"БЗО: **ВКЛЮЧИТЬ БЗО** (*отзывы: {reviews_rating_label(info)}*) "
-            f"/ {bzo_message_recipient_label(info)}"
+            f"{base} / отзывы: {reviews_rating_label(info)} / "
+            f"{info['name']} {bzo_message_recipient_label(info)}"
         )
     if action == "create_rk":
-        return f"РК: **СОЗДАТЬ РК** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) / {message_marketer_label(info)}"
+        return f"{base} / траты 3д: {rub(info.get('ad_spend_3d'))} / {info['name']} {message_marketer_label(info)}"
     if action == "check_rk":
         return (
-            f"РК: **ПРОВЕРИТЬ АКТИВНОСТЬ РК** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) "
-            f"/ {message_marketer_label(info)}"
+            f"{base} / траты 3д: {rub(info.get('ad_spend_3d'))} / "
+            f"{info['name']} {message_marketer_label(info)}"
         )
     if action == "disable_rk":
         return (
-            "РК: **ВЫКЛЮЧИТЬ РК** "
-            f"(*оборачиваемость 3д: {number(info.get('turnover_3d'))} д; "
-            f"траты 3д: {rub(info.get('ad_spend_3d_excl_today'))}; "
-            f"ДРР 3д: {pct(info.get('drr_3d_excl_today'))}; "
-            f"ближайшая поставка: {nearest_supply_label(info)}*) / {message_marketer_label(info)}"
+            f"{base} / оборачиваемость 3д: {number(info.get('turnover_3d'))} д / "
+            f"траты 3д: {rub(info.get('ad_spend_3d_excl_today'))} / "
+            f"ДРР 3д: {pct(info.get('drr_3d_excl_today'))} / "
+            f"ближайшая поставка: {nearest_supply_label(info)} / "
+            f"{info['name']} {message_marketer_label(info)}"
         )
     return "-"
 
@@ -396,7 +397,6 @@ def build_outputs(items):
     ]
 
     total_action_rows = 0
-    separator = "\\-----------------------------------------------"
     header = "| Артикул ВБ | Название товара | Категория | FBO | Действие | Цена / СПП | Отзывы и рейтинг | БЗО | Заказы (7д) | Наличие кампании РК | Траты (3д) | Оборачиваемость (3д) | Траты РК (3д без сегодня) | ДРР (3д без сегодня) | Ближайшая поставка FBO | Менеджер | Маркетолог |"
     divider = "|---:|---|---|---:|---|---|---|---|---:|---|---:|---:|---:|---:|---|---|---|"
 
@@ -407,12 +407,9 @@ def build_outputs(items):
             message_lines.append(f"**{title}:**")
             md_lines.append(header)
             md_lines.append(divider)
-            for index, item in enumerate(rows):
+            for item in rows:
                 total_action_rows += 1
-                message_lines.append(f"`{item['article']}` / FBO: `{item['fbo']}` / {item['name']}")
-                message_lines.append(f"↳ {action_text(key, item)}")
-                if index < len(rows) - 1:
-                    message_lines.append(separator)
+                message_lines.append(message_item_line(key, item))
                 md_lines.append(table_row(key, item))
             message_lines.append("")
             md_lines.append("")
