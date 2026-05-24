@@ -428,8 +428,8 @@ def build_segments(items):
         ("price", "НАСТРОИТЬ ЦЕНУ", [item for item in values if is_price_action(item)]),
         ("bzo", "ВКЛЮЧИТЬ БЗО", [item for item in values if is_bzo_action(item)]),
         ("create_rk", "СОЗДАТЬ РК", [item for item in values if is_create_rk_action(item)]),
-        ("check_rk", "ПРОВЕРИТЬ АКТИВНОСТЬ РК", [item for item in values if is_check_rk_action(item)]),
         ("disable_rk", "ВЫКЛЮЧИТЬ РК", [item for item in values if is_disable_rk_action(item)]),
+        ("check_rk", "ПРОВЕРИТЬ АКТИВНОСТЬ РК", [item for item in values if is_check_rk_action(item)]),
     ]
     return [(key, title, segment_sort(key, rows)) for key, title, rows in segments]
 
