@@ -12,7 +12,7 @@ const REPORTS = {
   },
   actions: {
     key: "actions",
-    command: "/действия_уведомления",
+    command: "/действия_уведомление",
     workflowEnv: "GITHUB_ACTIONS_WORKFLOW_ID",
     defaultWorkflowId: "wb-action-notifications.yml",
     defaultRunLabel: "08:05 по МСК",

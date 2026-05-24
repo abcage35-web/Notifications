@@ -84,7 +84,7 @@ Supported command text:
 
 ```text
 /фбо_уведомление
-/действия_уведомления
+/действия_уведомление
 ```
 
 When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the matching GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.

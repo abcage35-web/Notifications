@@ -651,8 +651,8 @@ Endpoint:
 - `GET /health` - безопасная проверка доступности, отчет не запускает;
 - `POST /dispatch` - запускает реальный GitHub workflow и отправку отчета, требует `Authorization: Bearer <DISPATCH_SECRET>`.
 - `POST /dispatch` может принимать JSON `{"workflow":"fbo","chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять FBO-отчет в указанный чат.
-- `POST /dispatch` может принимать JSON `{"workflow":"actions","chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять отчет `/действия_уведомления` в указанный чат.
-- `POST /pachca-command` - endpoint для резервной команды из Пачки. Поддерживаемые команды: `/фбо_уведомление`, `/действия_уведомления`. Worker проверяет `Pachca-Signature`, берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
+- `POST /dispatch` может принимать JSON `{"workflow":"actions","chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять отчет `/действия_уведомление` в указанный чат.
+- `POST /pachca-command` - endpoint для резервной команды из Пачки. Поддерживаемые команды: `/фбо_уведомление`, `/действия_уведомление`. Worker проверяет `Pachca-Signature`, берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
 
 GitHub API при успешном dispatch может вернуть `204 No Content` или `200 OK` с `workflow_run_id`. Оба ответа должны считаться успешными. Не делать retry только из-за `200 OK`, иначе можно создать несколько одинаковых отчетов.
 
