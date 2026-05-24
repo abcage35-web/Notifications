@@ -364,30 +364,30 @@ def check_rk_message_lines(rows):
     for item in rows:
         category = str(item.get("category") or "-").strip() or "-"
         marketer = message_marketer_label(item)
-        grouped[category][marketer].append(item)
+        grouped[marketer][category].append(item)
 
     lines = []
-    category_keys = sorted(
+    marketer_keys = sorted(
         grouped,
-        key=lambda category: (
-            -sum(len(items) for items in grouped[category].values()),
-            category.casefold(),
+        key=lambda marketer: (
+            -sum(len(items) for items in grouped[marketer].values()),
+            marketer.casefold(),
         ),
     )
-    for category in category_keys:
-        lines.append(f"• {category}")
-        marketer_groups = grouped[category]
-        marketer_keys = sorted(
-            marketer_groups,
-            key=lambda marketer: (-len(marketer_groups[marketer]), marketer.casefold()),
+    for marketer in marketer_keys:
+        lines.append(f"• {marketer}")
+        category_groups = grouped[marketer]
+        category_keys = sorted(
+            category_groups,
+            key=lambda category: (-len(category_groups[category]), category.casefold()),
         )
-        for marketer in marketer_keys:
+        for category in category_keys:
             articles = sorted(
-                [str(item["article"]) for item in marketer_groups[marketer]],
+                [str(item["article"]) for item in category_groups[category]],
                 key=lambda article: (0, int(article)) if article.isdigit() else (1, article),
             )
             article_list = ", ".join(article_md(article) for article in articles)
-            lines.append(f"• • {marketer} / SKU: {code_value(len(articles))} / {article_list}")
+            lines.append(f"• • {category} / SKU: {code_value(len(articles))} / {article_list}")
     return lines
 
 
