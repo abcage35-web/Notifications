@@ -24,6 +24,11 @@ DRR_DISABLE_THRESHOLD = float(os.getenv("DRR_DISABLE_THRESHOLD", "4"))
 TURNOVER_DISABLE_DAYS = float(os.getenv("TURNOVER_DISABLE_DAYS", "5"))
 SUPPLY_LOOKAHEAD_DAYS = int(os.getenv("SUPPLY_LOOKAHEAD_DAYS", "30"))
 SUPPLY_DISABLE_MIN_DAYS = int(os.getenv("SUPPLY_DISABLE_MIN_DAYS", "5"))
+CHECK_RK_EXCLUDED_CATEGORIES = {
+    category.strip().casefold()
+    for category in os.getenv("CHECK_RK_EXCLUDED_CATEGORIES", "Колготки").split(",")
+    if category.strip()
+}
 
 
 def md_cell(value):
@@ -293,6 +298,10 @@ def is_create_rk_action(info):
     return has_action_stock(info) and not info.get("rk_created")
 
 
+def is_check_rk_excluded_category(info):
+    return str(info.get("category") or "").strip().casefold() in CHECK_RK_EXCLUDED_CATEGORIES
+
+
 def is_check_rk_action(info):
     turnover = info.get("turnover_3d")
     return (
@@ -301,6 +310,7 @@ def is_check_rk_action(info):
         and float(info.get("ad_spend_3d") or 0) < RK_LOW_SPEND_THRESHOLD
         and turnover is not None
         and turnover > 30
+        and not is_check_rk_excluded_category(info)
     )
 
 
@@ -347,6 +357,38 @@ def message_item_line(action, info):
             f"{info['name']} {message_marketer_label(info)}"
         )
     return "-"
+
+
+def check_rk_message_lines(rows):
+    grouped = defaultdict(lambda: defaultdict(list))
+    for item in rows:
+        category = str(item.get("category") or "-").strip() or "-"
+        marketer = message_marketer_label(item)
+        grouped[category][marketer].append(item)
+
+    lines = []
+    category_keys = sorted(
+        grouped,
+        key=lambda category: (
+            -sum(len(items) for items in grouped[category].values()),
+            category.casefold(),
+        ),
+    )
+    for category in category_keys:
+        lines.append(f"• {category}")
+        marketer_groups = grouped[category]
+        marketer_keys = sorted(
+            marketer_groups,
+            key=lambda marketer: (-len(marketer_groups[marketer]), marketer.casefold()),
+        )
+        for marketer in marketer_keys:
+            articles = sorted(
+                [str(item["article"]) for item in marketer_groups[marketer]],
+                key=lambda article: (0, int(article)) if article.isdigit() else (1, article),
+            )
+            article_list = ", ".join(article_md(article) for article in articles)
+            lines.append(f"• • {marketer} / SKU: {code_value(len(articles))} / {article_list}")
+    return lines
 
 
 def md_action_label(action):
@@ -406,6 +448,7 @@ def build_outputs(items):
         f"- БЗО: FBO >= {ACTION_MIN_FBO}, БЗО нет, отзывов <= 10, заказов 7д <= 10.",
         f"- Создать РК: FBO >= {ACTION_MIN_FBO}, нет неархивной РК.",
         f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты (3д) < {RK_LOW_SPEND_THRESHOLD} руб., оборачиваемость > 30д.",
+        "- Временное условие для `Проверить активность РК`: категория `Колготки` исключается из сообщения и Markdown-таблицы.",
         "- Выключить РК: оборачиваемость 3 полных дней < 5д, траты (3д) > 3 000 руб. или ДРР (3д) > 4%, ближайшая поставка через 5+ дней или отсутствует.",
         "",
     ]
@@ -423,8 +466,12 @@ def build_outputs(items):
             md_lines.append(divider)
             for item in rows:
                 total_action_rows += 1
-                message_lines.append(message_item_line(key, item))
                 md_lines.append(table_row(key, item))
+            if key == "check_rk":
+                message_lines.extend(check_rk_message_lines(rows))
+            else:
+                for item in rows:
+                    message_lines.append(message_item_line(key, item))
             message_lines.append("")
             md_lines.append("")
         else:
