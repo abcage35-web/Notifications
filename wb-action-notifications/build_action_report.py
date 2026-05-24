@@ -68,16 +68,9 @@ def price_spp_label(info):
     return f"{money_or_dash(price_before_spp)} / {money_or_dash(price_with_spp)}{spp_label}"
 
 
-def price_spp_message_label(info):
+def price_message_label(info):
     price_before_spp = float(info.get("price_before_spp") or 0)
-    price_with_spp = float(info.get("price_with_spp") or 0)
-    spp_percent = float(info.get("spp_percent") or 0)
-    if not spp_percent and price_before_spp > 0 and price_with_spp > 0:
-        spp_percent = round((1 - price_with_spp / price_before_spp) * 100)
-    price_with_spp_label = money_or_dash(price_with_spp)
-    if price_with_spp > 0 and spp_percent > 0:
-        price_with_spp_label = f"{price_with_spp_label} ({int(round(spp_percent))}%)"
-    return f"{code_value(money_or_dash(price_before_spp))} / {code_value(price_with_spp_label)}"
+    return code_value(money_or_dash(price_before_spp))
 
 
 def reviews_rating_label(info):
@@ -100,7 +93,7 @@ def message_manager_label(info):
 
 
 def bzo_message_recipient_label(info):
-    return f"{message_manager_label(info)} / @e.khanzhova"
+    return f"{message_manager_label(info)} / @Елена Ханжова"
 
 
 def nearest_supply_label(info):
@@ -330,25 +323,25 @@ def is_disable_rk_action(info):
 def message_item_line(action, info):
     base = f"• {code_value(info['article'])} / FBO: {code_value(int(info.get('fbo') or 0))}"
     if action == "price":
-        return f"{base} / цена / спп: {price_spp_message_label(info)} / {info['name']} {message_manager_label(info)}"
+        return f"{base} / Цена: {price_message_label(info)} / {info['name']} {message_manager_label(info)}"
     if action == "bzo":
         return (
-            f"{base} / отзывы: {code_value(reviews_rating_label(info))} / "
+            f"{base} / Отзывы: {code_value(reviews_rating_label(info))} / "
             f"{info['name']} {bzo_message_recipient_label(info)}"
         )
     if action == "create_rk":
-        return f"{base} / траты 3д: {code_value(rub(info.get('ad_spend_3d')))} / {info['name']} {message_marketer_label(info)}"
+        return f"{base} / Траты (3д): {code_value(rub(info.get('ad_spend_3d')))} / {info['name']} {message_marketer_label(info)}"
     if action == "check_rk":
         return (
-            f"{base} / траты 3д: {code_value(rub(info.get('ad_spend_3d')))} / "
+            f"{base} / Траты (3д): {code_value(rub(info.get('ad_spend_3d')))} / "
             f"{info['name']} {message_marketer_label(info)}"
         )
     if action == "disable_rk":
         return (
-            f"{base} / оборачиваемость 3д: {code_value(number(info.get('turnover_3d')) + ' д')} / "
-            f"траты 3д: {code_value(rub(info.get('ad_spend_3d_excl_today')))} / "
-            f"ДРР 3д: {code_value(pct(info.get('drr_3d_excl_today')))} / "
-            f"ближайшая поставка: {code_value(nearest_supply_label(info))} / "
+            f"{base} / Обор-сть (3д): {code_value(number(info.get('turnover_3d')) + ' д')} / "
+            f"Траты (3д): {code_value(rub(info.get('ad_spend_3d_excl_today')))} / "
+            f"ДРР (3д): {code_value(pct(info.get('drr_3d_excl_today')))} / "
+            f"Ближайшая поставка: {code_value(nearest_supply_label(info))} / "
             f"{info['name']} {message_marketer_label(info)}"
         )
     return "-"
@@ -410,8 +403,8 @@ def build_outputs(items):
         f"- Цена: FBO >= {ACTION_MIN_FBO}, цена до СПП >= {PRICE_ACTION_THRESHOLD} руб.",
         f"- БЗО: FBO >= {ACTION_MIN_FBO}, БЗО нет, отзывов <= 10, заказов 7д <= 10.",
         f"- Создать РК: FBO >= {ACTION_MIN_FBO}, нет неархивной РК.",
-        f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты 3д < {RK_LOW_SPEND_THRESHOLD} руб., оборачиваемость > 30д.",
-        "- Выключить РК: оборачиваемость 3 полных дней < 5д, траты 3д > 3 000 руб. или ДРР 3д > 4%, ближайшая поставка через 5+ дней или отсутствует.",
+        f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты (3д) < {RK_LOW_SPEND_THRESHOLD} руб., оборачиваемость > 30д.",
+        "- Выключить РК: оборачиваемость 3 полных дней < 5д, траты (3д) > 3 000 руб. или ДРР (3д) > 4%, ближайшая поставка через 5+ дней или отсутствует.",
         "",
     ]
 
