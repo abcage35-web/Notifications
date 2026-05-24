@@ -285,10 +285,13 @@ def is_create_rk_action(info):
 
 
 def is_check_rk_action(info):
+    turnover = info.get("turnover_3d")
     return (
         has_action_stock(info)
         and bool(info.get("rk_created"))
         and float(info.get("ad_spend_3d") or 0) < RK_LOW_SPEND_THRESHOLD
+        and turnover is not None
+        and turnover > 30
     )
 
 
@@ -391,7 +394,7 @@ def build_outputs(items):
         f"- Цена: FBO >= {ACTION_MIN_FBO}, цена до СПП >= {PRICE_ACTION_THRESHOLD} руб.",
         f"- БЗО: FBO >= {ACTION_MIN_FBO}, БЗО нет, отзывов <= 10, заказов 7д <= 10.",
         f"- Создать РК: FBO >= {ACTION_MIN_FBO}, нет неархивной РК.",
-        f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты 3д < {RK_LOW_SPEND_THRESHOLD} руб.",
+        f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты 3д < {RK_LOW_SPEND_THRESHOLD} руб., оборачиваемость > 30д.",
         "- Выключить РК: оборачиваемость 3 полных дней < 5д, траты 3д > 3 000 руб. или ДРР 3д > 4%, ближайшая поставка через 5+ дней или отсутствует.",
         "",
     ]
