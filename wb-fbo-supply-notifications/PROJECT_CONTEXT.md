@@ -357,7 +357,9 @@ qty > 0
 Условие:
 
 ```text
-цена до СПП > 80 000 ₽
+FBO >= 50
+и
+цена до СПП >= 80 000 ₽
 ```
 
 В сообщении:
@@ -379,9 +381,11 @@ qty > 0
 ```text
 feedbackPoints <= 0
 и
-отзывов < 10
+FBO >= 50
 и
-заказов за 7 дней < 10
+отзывов <= 10
+и
+заказов за 7 дней <= 10
 ```
 
 В сообщении:
@@ -397,6 +401,8 @@ feedbackPoints <= 0
 Условие:
 
 ```text
+FBO >= 50
+и
 нет неархивной РК
 ```
 
@@ -418,6 +424,8 @@ feedbackPoints <= 0
 
 ```text
 РК существует
+и
+FBO >= 50
 и
 траты за 3 дня < 3 000 ₽
 и
@@ -625,7 +633,8 @@ https://abcage_notification.abcage35.workers.dev
 
 Назначение Worker:
 
-- запускаться по Cloudflare cron `0 5 * * *`;
+- запускать FBO workflow по Cloudflare cron `0 5 * * *`;
+- запускать actions workflow по Cloudflare cron `5 5 * * *`;
 - вызывать GitHub REST API `workflow_dispatch`;
 - не собирать отчет самостоятельно;
 - не обращаться напрямую к WB, Google Sheets, MCP или Pachca;
@@ -641,8 +650,9 @@ Endpoint:
 
 - `GET /health` - безопасная проверка доступности, отчет не запускает;
 - `POST /dispatch` - запускает реальный GitHub workflow и отправку отчета, требует `Authorization: Bearer <DISPATCH_SECRET>`.
-- `POST /dispatch` может принимать JSON `{"chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять отчет в указанный чат.
-- `POST /pachca-command` - endpoint для резервной команды из Пачки. Поддерживаемая команда: `/фбо_уведомление`. Worker проверяет `Pachca-Signature`, берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
+- `POST /dispatch` может принимать JSON `{"workflow":"fbo","chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять FBO-отчет в указанный чат.
+- `POST /dispatch` может принимать JSON `{"workflow":"actions","chat_id":"39363429","report_run_label":"ручной запуск"}` и отправлять отчет `/действия_уведомления` в указанный чат.
+- `POST /pachca-command` - endpoint для резервной команды из Пачки. Поддерживаемые команды: `/фбо_уведомление`, `/действия_уведомления`. Worker проверяет `Pachca-Signature`, берет chat id из webhook payload и запускает отчет туда, где команду вызвали.
 
 GitHub API при успешном dispatch может вернуть `204 No Content` или `200 OK` с `workflow_run_id`. Оба ответа должны считаться успешными. Не делать retry только из-за `200 OK`, иначе можно создать несколько одинаковых отчетов.
 

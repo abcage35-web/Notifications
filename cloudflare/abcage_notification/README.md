@@ -1,11 +1,12 @@
 # abcage_notification
 
-Cloudflare Worker that triggers the existing GitHub Actions workflow for WB FBO supply notifications.
+Cloudflare Worker that triggers GitHub Actions workflows for WB notification reports.
 
 The Worker does not build or send the Pachca report itself. It only calls GitHub's `workflow_dispatch` API for:
 
 - repository: `abcage35-web/Notifications`
-- workflow: `.github/workflows/wb-fbo-supply-notifications.yml`
+- FBO workflow: `.github/workflows/wb-fbo-supply-notifications.yml`
+- actions workflow: `.github/workflows/wb-action-notifications.yml`
 - ref: `main`
 
 GitHub Actions then runs the existing Python report sender, which sends the Pachca message, Markdown file and optional thread message.
@@ -17,10 +18,9 @@ GitHub can return either `204 No Content` or `200 OK` with a `workflow_run_id`; 
 Cloudflare cron:
 
 ```text
-0 5 * * *
+0 5 * * * - FBO report, 08:00 MSK
+5 5 * * * - actions report, 08:05 MSK
 ```
-
-This is `08:00 MSK`.
 
 ## Secrets
 
@@ -63,6 +63,15 @@ curl -X POST "$WORKER_URL/dispatch" \
   -d '{"chat_id":"39363429","report_run_label":"ручной запуск"}'
 ```
 
+To run the actions report:
+
+```bash
+curl -X POST "$WORKER_URL/dispatch" \
+  -H "Authorization: Bearer $DISPATCH_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"workflow":"actions","chat_id":"39363429","report_run_label":"ручной запуск"}'
+```
+
 ## Pachca Backup Command
 
 The Worker also exposes:
@@ -75,8 +84,9 @@ Supported command text:
 
 ```text
 /фбо_уведомление
+/действия_уведомления
 ```
 
-When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the same GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.
+When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the matching GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.
 
 The endpoint validates Pachca's `Pachca-Signature` header with `PACHCA_WEBHOOK_SECRET`.

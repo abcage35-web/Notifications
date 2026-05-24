@@ -20,6 +20,7 @@ The scripts intentionally do not store API tokens in the repository.
 - `PACHCA_CHAT_ID` is the Pachca discussion id that receives the report.
 - `REPORT_TZ` can override the report timezone, default is `Asia/Tbilisi`.
 - `REPORT_RUN_LABEL` is shown in the Pachca message title, default is `08:00 по МСК`.
+- `ACTION_MIN_FBO` controls the minimum current FBO stock for action recommendations, default is `50`.
 
 Generated report files are ignored by git.
 

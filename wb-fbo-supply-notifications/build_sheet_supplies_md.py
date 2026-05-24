@@ -19,6 +19,7 @@ REPORT_TZ = ZoneInfo(os.getenv("REPORT_TZ", "Asia/Tbilisi"))
 START = datetime.now(REPORT_TZ).date()
 STRICT_SOURCE_LOADING = os.getenv("STRICT_SOURCE_LOADING", "1") != "0"
 REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "08:00 по МСК")
+ACTION_MIN_FBO = int(os.getenv("ACTION_MIN_FBO", "50"))
 MARKETER_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/"
     "1STPnPgj8xSrvN-F3K96bDj_pmunCICHTjaj358pRaB4"
@@ -641,11 +642,15 @@ def main():
             return f"да ({rub(points)})"
         return "нет"
 
+    def has_action_stock(info):
+        return int(info.get("fbo") or 0) >= ACTION_MIN_FBO
+
     def needs_bzo_action(info):
         return (
-            int(info.get("feedback_points") or 0) <= 0
-            and int(info.get("nm_feedbacks") or 0) < 10
-            and int(info.get("orders_7d") or 0) < 10
+            has_action_stock(info)
+            and int(info.get("feedback_points") or 0) <= 0
+            and int(info.get("nm_feedbacks") or 0) <= 10
+            and int(info.get("orders_7d") or 0) <= 10
         )
 
     def reviews_label(info):
@@ -691,7 +696,7 @@ def main():
         return f"{price_label(price_before_spp)} / {price_label(price_with_spp)}{spp_label}"
 
     def needs_price_action(offset, info):
-        return float(info.get("price_before_spp") or 0) > 80000
+        return has_action_stock(info) and float(info.get("price_before_spp") or 0) >= 80000
 
     def action_label(info, check_price=False, include_rk_activity=True):
         actions = []
@@ -699,9 +704,9 @@ def main():
             actions.append("Цена: проверить цену")
         if needs_bzo_action(info):
             actions.append("БЗО: включить БЗО")
-        if not info.get("rk_created"):
+        if has_action_stock(info) and not info.get("rk_created"):
             actions.append("РК: включить РК")
-        elif include_rk_activity and float(info.get("ad_spend_3d") or 0) < 3000:
+        elif has_action_stock(info) and include_rk_activity and float(info.get("ad_spend_3d") or 0) < 3000:
             actions.append("РК: проверить активность РК")
         return "<br>".join(actions) if actions else "-"
 
@@ -715,11 +720,11 @@ def main():
             recommendations.append(
                 f"БЗО: **ВКЛЮЧИТЬ БЗО** (*отзывы: {reviews_label(info)} ({rating_label(info)} ★)*) / {bzo_message_recipient_label(info)}"
             )
-        if not info.get("rk_created"):
+        if has_action_stock(info) and not info.get("rk_created"):
             recommendations.append(
                 f"РК: **{underline_text('СОЗДАТЬ РК')}** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) / {message_marketer_label(info)}"
             )
-        elif include_rk_activity and float(info.get("ad_spend_3d") or 0) < 3000:
+        elif has_action_stock(info) and include_rk_activity and float(info.get("ad_spend_3d") or 0) < 3000:
             recommendations.append(
                 f"РК: **ПРОВЕРИТЬ АКТИВНОСТЬ РК** (*траты 3д: {rub(info.get('ad_spend_3d'))}*) / {message_marketer_label(info)}"
             )

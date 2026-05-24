@@ -1,0 +1,55 @@
+name: WB Action Notifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      pachca_chat_id:
+        description: "Optional Pachca chat id override for manual/backup runs"
+        required: false
+        default: "39363429"
+        type: string
+      report_run_label:
+        description: "Optional label shown in the Pachca report title"
+        required: false
+        default: "08:05 по МСК"
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: wb-action-notifications
+    env:
+      REPORT_TZ: Asia/Tbilisi
+      ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
+      PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_ACTIONS || '39363429' }}
+      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '08:05 по МСК' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build and send Pachca report
+        run: python send_pachca_report.py
+
+      - name: Upload generated reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-action-notifications-report
+          path: |
+            wb-action-notifications/pachca_wb_actions_*.md
+            wb-action-notifications/pachca_wb_actions_*.json
+          if-no-files-found: ignore

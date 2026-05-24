@@ -1,5 +1,25 @@
 const GITHUB_API_VERSION = "2026-03-10";
 
+const REPORTS = {
+  fbo: {
+    key: "fbo",
+    command: "/фбо_уведомление",
+    workflowEnv: "GITHUB_FBO_WORKFLOW_ID",
+    fallbackWorkflowEnv: "GITHUB_WORKFLOW_ID",
+    defaultWorkflowId: "wb-fbo-supply-notifications.yml",
+    defaultRunLabel: "08:00 по МСК",
+    cron: "0 5 * * *",
+  },
+  actions: {
+    key: "actions",
+    command: "/действия_уведомления",
+    workflowEnv: "GITHUB_ACTIONS_WORKFLOW_ID",
+    defaultWorkflowId: "wb-action-notifications.yml",
+    defaultRunLabel: "08:05 по МСК",
+    cron: "5 5 * * *",
+  },
+};
+
 function requireEnv(env, name) {
   const value = env[name];
   if (!value) {
@@ -99,15 +119,57 @@ function extractPachcaCommandText(payload) {
   return pickFirstString(payload.content, payload.text, message.content, message.text);
 }
 
-function isFboBackupCommand(text) {
+function normalizeCommandText(text) {
   const normalized = String(text || "").trim().toLowerCase();
-  return normalized === "/фбо_уведомление";
+  return normalized.replace(/^@\S+\s+/, "").trim();
 }
 
-async function dispatchWorkflow(env, source, inputs = {}) {
+function reportByKey(reportKey) {
+  const normalized = String(reportKey || "").trim().toLowerCase();
+  const aliases = {
+    action: "actions",
+    actions: "actions",
+    "wb-action-notifications.yml": "actions",
+    fbo: "fbo",
+    "wb-fbo-supply-notifications.yml": "fbo",
+  };
+  return REPORTS[aliases[normalized] || normalized] || REPORTS.fbo;
+}
+
+function reportByCommand(text) {
+  const normalized = normalizeCommandText(text);
+  return Object.values(REPORTS).find((report) => normalized === report.command);
+}
+
+function reportByCron(cron) {
+  return Object.values(REPORTS).find((report) => report.cron === cron) || REPORTS.fbo;
+}
+
+function reportByPayload(payload, url) {
+  return reportByKey(
+    pickFirstString(
+      payload.workflow,
+      payload.report,
+      payload.report_key,
+      url.searchParams.get("workflow"),
+      url.searchParams.get("report"),
+    ),
+  );
+}
+
+function workflowIdForReport(env, report) {
+  return (
+    env[report.workflowEnv] ||
+    (report.fallbackWorkflowEnv ? env[report.fallbackWorkflowEnv] : "") ||
+    report.defaultWorkflowId
+  );
+}
+
+async function dispatchWorkflow(env, source, inputs = {}, reportKey = "fbo") {
+  const report = reportByKey(reportKey);
   const owner = requireEnv(env, "GITHUB_OWNER");
   const repo = requireEnv(env, "GITHUB_REPO");
-  const workflowId = requireEnv(env, "GITHUB_WORKFLOW_ID");
+  const workflowId = workflowIdForReport(env, report);
   const ref = env.GITHUB_REF || "main";
   const token = requireEnv(env, "GITHUB_TOKEN");
   const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`;
@@ -151,6 +213,7 @@ async function dispatchWorkflow(env, source, inputs = {}) {
     runUrl: payload.html_url || payload.run_url,
     owner,
     repo,
+    report: report.key,
     workflowId,
     ref,
     inputs: workflowInputs,
@@ -166,8 +229,10 @@ export default {
       return jsonResponse({
         ok: true,
         worker: "abcage_notification",
-        schedule: "0 5 * * *",
-        backupCommands: ["/фбо_уведомление"],
+        schedules: Object.fromEntries(
+          Object.values(REPORTS).map((report) => [report.key, report.cron]),
+        ),
+        backupCommands: Object.values(REPORTS).map((report) => report.command),
       });
     }
 
@@ -178,12 +243,13 @@ export default {
 
       try {
         const payload = await readJson(request);
+        const report = reportByPayload(payload, url);
         const pachcaChatId = pickFirstString(payload.pachca_chat_id, payload.chat_id);
         const reportRunLabel = pickFirstString(payload.report_run_label, "ручной запуск");
         const result = await dispatchWorkflow(env, "manual-http", {
           pachca_chat_id: pachcaChatId,
           report_run_label: reportRunLabel,
-        });
+        }, report.key);
         return jsonResponse(result, 202);
       } catch (error) {
         console.error(error);
@@ -207,8 +273,9 @@ export default {
 
       try {
         const text = extractPachcaCommandText(payload);
-        if (!isFboBackupCommand(text)) {
-          return jsonResponse({ ok: true, ignored: true, reason: "not an FBO backup command" });
+        const report = reportByCommand(text);
+        if (!report) {
+          return jsonResponse({ ok: true, ignored: true, reason: "not a supported backup command" });
         }
 
         const pachcaChatId = extractPachcaChatId(payload);
@@ -219,7 +286,7 @@ export default {
         const result = await dispatchWorkflow(env, "pachca-command", {
           pachca_chat_id: pachcaChatId,
           report_run_label: "ручной запуск",
-        });
+        }, report.key);
         return jsonResponse(result, 202);
       } catch (error) {
         console.error(error);
@@ -230,9 +297,12 @@ export default {
     return jsonResponse({ ok: false, error: "not found" }, 404);
   },
 
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
+    const report = reportByCron(controller?.cron);
     ctx.waitUntil(
-      dispatchWorkflow(env, "cloudflare-cron")
+      dispatchWorkflow(env, "cloudflare-cron", {
+        report_run_label: report.defaultRunLabel,
+      }, report.key)
         .then((result) => console.log(JSON.stringify(result)))
         .catch((error) => {
           console.error(error);

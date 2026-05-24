@@ -4,12 +4,14 @@
   "main": "src/index.js",
   "compatibility_date": "2026-05-22",
   "triggers": {
-    "crons": ["0 5 * * *"]
+    "crons": ["0 5 * * *", "5 5 * * *"]
   },
   "vars": {
     "GITHUB_OWNER": "abcage35-web",
     "GITHUB_REPO": "Notifications",
     "GITHUB_WORKFLOW_ID": "wb-fbo-supply-notifications.yml",
+    "GITHUB_FBO_WORKFLOW_ID": "wb-fbo-supply-notifications.yml",
+    "GITHUB_ACTIONS_WORKFLOW_ID": "wb-action-notifications.yml",
     "GITHUB_REF": "main"
   }
 }
