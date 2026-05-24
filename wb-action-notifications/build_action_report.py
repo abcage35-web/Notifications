@@ -387,7 +387,7 @@ def check_rk_message_lines(rows):
                 key=lambda article: (0, int(article)) if article.isdigit() else (1, article),
             )
             article_list = ", ".join(article_md(article) for article in articles)
-            lines.append(f"• • {category} / SKU: {code_value(len(articles))} / {article_list}")
+            lines.append(f"• • **{category}** / SKU: {code_value(len(articles))} / {article_list}")
     return lines
 
 
