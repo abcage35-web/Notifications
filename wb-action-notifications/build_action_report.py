@@ -90,7 +90,7 @@ def bzo_message_recipient_label(info):
 def nearest_supply_label(info):
     supply = info.get("nearest_supply")
     if not supply:
-        return "нет в ближайшие 30д"
+        return "-"
     return f"{supply['date'].strftime('%d.%m.%Y')} (+{supply['qty']}, через {supply['days_until']}д)"
 
 
