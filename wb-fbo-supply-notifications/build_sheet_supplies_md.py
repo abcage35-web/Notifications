@@ -31,6 +31,10 @@ MANAGER_CSV_URL = (
     "/gviz/tq?tqx=out:csv&gid=586703293&range=C1:F3492"
 )
 WB_CARD_DETAIL_URL = "https://card.wb.ru/cards/v4/detail"
+PACHCA_API_BASE = "https://api.pachca.com/api/shared/v1"
+PACHCA_BZO_MENTION_QUERY = os.getenv("PACHCA_BZO_MENTION_QUERY", "Елена Ханжова")
+PACHCA_BZO_MENTION_FALLBACK = os.getenv("PACHCA_BZO_MENTION_FALLBACK", "@Елена Ханжова")
+PACHCA_BZO_MENTION = os.getenv("PACHCA_BZO_MENTION", "")
 
 MARKETER_BY_ARTICLE = {
     # Source: Google Sheets "ОП > ОВР переводчик", tab "ОВР (настройка)", D:H.
@@ -62,6 +66,49 @@ MARKETER_BY_ARTICLE = {
     "837573827": "@a.beaver",
     "837579658": "@a.beaver",
 }
+
+PACHCA_MENTION_CACHE = {}
+
+
+def resolve_pachca_user_mention(query, fallback):
+    if PACHCA_BZO_MENTION:
+        return PACHCA_BZO_MENTION
+    token = os.getenv("PACHCA_TOKEN")
+    normalized_query = str(query or "").strip()
+    if not token or not normalized_query:
+        return fallback
+    if normalized_query in PACHCA_MENTION_CACHE:
+        return PACHCA_MENTION_CACHE[normalized_query]
+
+    params = urlencode({"query": normalized_query, "limit": 10})
+    request = Request(
+        f"{PACHCA_API_BASE}/users?{params}",
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            users = json.loads(response.read().decode("utf-8")).get("data") or []
+    except Exception:
+        PACHCA_MENTION_CACHE[normalized_query] = fallback
+        return fallback
+
+    target = normalized_query.lstrip("@").casefold()
+    candidates = [user for user in users if not user.get("suspended")]
+    exact_matches = []
+    for user in candidates:
+        full_name = f"{user.get('first_name') or ''} {user.get('last_name') or ''}".strip()
+        nickname = str(user.get("nickname") or "").lstrip("@")
+        if full_name.casefold() == target or nickname.casefold() == target:
+            exact_matches.append(user)
+    selected = (exact_matches or candidates or users or [None])[0]
+    user_id = selected.get("id") if selected else None
+    mention = f"<@{user_id}>" if user_id else fallback
+    PACHCA_MENTION_CACHE[normalized_query] = mention
+    return mention
+
+
+def bzo_employee_mention():
+    return resolve_pachca_user_mention(PACHCA_BZO_MENTION_QUERY, PACHCA_BZO_MENTION_FALLBACK)
 
 
 def load_marketer_by_article():
@@ -680,7 +727,7 @@ def main():
         return "`не указан менеджер`" if info.get("manager") == "-" else info["manager"]
 
     def bzo_message_recipient_label(info):
-        return f"{message_manager_label(info)} / @e.khanzhova"
+        return f"{message_manager_label(info)} / {bzo_employee_mention()}"
 
     def price_label(value):
         amount = int(round(float(value or 0)))

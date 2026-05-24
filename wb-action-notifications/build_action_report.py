@@ -93,7 +93,7 @@ def message_manager_label(info):
 
 
 def bzo_message_recipient_label(info):
-    return f"{message_manager_label(info)} / @Елена Ханжова"
+    return f"{message_manager_label(info)} / {fbo.bzo_employee_mention()}"
 
 
 def nearest_supply_label(info):
