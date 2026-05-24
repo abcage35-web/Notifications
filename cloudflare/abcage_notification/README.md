@@ -72,11 +72,7 @@ POST /pachca-command?secret=<DISPATCH_SECRET>
 Supported command text:
 
 ```text
-/fbo
-/fbo-now
-/фбо
-фбо
-поставки fbo
+/фбо_уведомление
 ```
 
 When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the same GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.

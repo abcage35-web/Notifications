@@ -74,7 +74,7 @@ function extractPachcaCommandText(payload) {
 
 function isFboBackupCommand(text) {
   const normalized = String(text || "").trim().toLowerCase();
-  return ["/fbo", "/fbo-now", "/фбо", "фбо", "поставки fbo"].includes(normalized);
+  return normalized === "/фбо_уведомление";
 }
 
 async function dispatchWorkflow(env, source, inputs = {}) {
@@ -140,7 +140,7 @@ export default {
         ok: true,
         worker: "abcage_notification",
         schedule: "0 5 * * *",
-        backupCommands: ["/fbo", "/fbo-now", "/фбо", "фбо", "поставки fbo"],
+        backupCommands: ["/фбо_уведомление"],
       });
     }
 
