@@ -451,6 +451,19 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
     return db.query(sql)
 
 
+def resolve_stock_date(db: McpSql, requested_stock_date: date) -> date:
+    sql = f"""
+    SELECT MAX(stock.date) AS stock_date
+    FROM mp.mp_core__realtime_stocks_data stock
+    WHERE stock.date <= '{requested_stock_date.isoformat()}'
+      AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+    """
+    rows = db.query(sql)
+    if not rows or not rows[0].get("stock_date"):
+        return requested_stock_date
+    return parse_date(str(rows[0]["stock_date"])[:10])
+
+
 def enrich_rows(raw_rows, calculation_from: date, old_ip_by_sku: dict[str, str]):
     marketers = load_marketer_by_article()
     rows = []
@@ -930,7 +943,7 @@ def main():
     args = parse_args()
     date_to = parse_date(args.date_to) if args.date_to else today() - timedelta(days=1)
     date_from = parse_date(args.date_from) if args.date_from else date_to - timedelta(days=args.window_days - 1)
-    stock_date = parse_date(args.stock_date) if args.stock_date else date_to + timedelta(days=1)
+    requested_stock_date = parse_date(args.stock_date) if args.stock_date else date_to + timedelta(days=1)
     calculation_from = month_start(date_from)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -938,6 +951,7 @@ def main():
     old_ip_by_sku = load_old_ip_by_sku(OLD_IP_REPORT_PATH)
     db = McpSql()
     try:
+        stock_date = resolve_stock_date(db, requested_stock_date)
         raw_rows = query_rows(db, calculation_from, date_to, stock_date, MIN_CURRENT_FBO)
     finally:
         db.close()
