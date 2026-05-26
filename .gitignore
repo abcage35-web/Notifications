@@ -12,3 +12,10 @@ wb_*.md
 fbo_wb_report_logic_*.md
 responsible_marketers_request_example_*.md
 *.summary.json
+
+# WB marketing generated reports/cache
+wb-marketing-notifications/Незаполненный контент по Артикулам.md
+wb-marketing-notifications/Полный контент по Артикулам.md
+wb-marketing-notifications/Настройки Рекомендаций Продавца.md
+wb-marketing-notifications/seller-recommendations-suggestions.json
+wb-marketing-notifications/.wb-basket-cache.json

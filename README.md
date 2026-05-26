@@ -1,13 +1,63 @@
 # Notifications
 
-Notification subprojects.
+Repository for WB/Pachca notification bots.
 
-Shared repository context: `PROJECT_CONTEXT.md`.
+The project is split into independent subprojects. Each bot builds a report, sends a Pachca message, attaches Markdown files, and can be triggered by Cloudflare cron, GitHub Actions `workflow_dispatch`, or a Pachca backup command.
 
-## Subprojects
+Full operational context is documented in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 
-- `wb-fbo-supply-notifications/` - WB FBO supply notifications and Pachca-ready Markdown reports. Detailed context: `wb-fbo-supply-notifications/PROJECT_CONTEXT.md`.
-- `wb-action-notifications/` - WB action notifications for price, BZO, RK activity, RK creation, and RK shutdown segments. Detailed context: `wb-action-notifications/PROJECT_CONTEXT.md`.
-- `wb-marketing-notifications/` - WB marketing content notification report. Detailed context: `wb-marketing-notifications/PROJECT_CONTEXT.md`.
-- `cloudflare/abcage_notification/` - Cloudflare Worker that triggers notification GitHub Actions workflows on schedule and by Pachca backup commands.
-- `cloudflare/wb_marketing_notifications/` - Cloudflare Worker for monthly WB marketing content notifications and `/контент_уведомление`.
+## Bots
+
+| Bot | Folder | Pachca command | Schedule | Main output |
+|---|---|---|---|---|
+| FBO supplies | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | every day 08:00 MSK | FBO supply message + Markdown file + optional thread for missing marketers |
+| WB actions | `wb-action-notifications/` | `/действия_уведомление` | every day 08:05 MSK | action segments by price, BZO, RK creation, RK shutdown, RK activity |
+| Content | `wb-marketing-notifications/` | `/контент_уведомление` | every 20th day 13:00 MSK | content completeness message + 3 Markdown files + thread summaries |
+
+## Repository Structure
+
+```text
+.
+├── .github/workflows/
+│   ├── wb-action-notifications.yml
+│   ├── wb-fbo-supply-notifications.yml
+│   └── wb-marketing-notifications.yml
+├── cloudflare/
+│   ├── abcage_notification/
+│   └── wb_marketing_notifications/
+├── wb-action-notifications/
+├── wb-fbo-supply-notifications/
+├── wb-marketing-notifications/
+├── PROJECT_CONTEXT.md
+└── README.md
+```
+
+## Runtime Flow
+
+```text
+Cloudflare cron or Pachca command
+        ↓
+Cloudflare Worker
+        ↓
+GitHub Actions workflow_dispatch
+        ↓
+Python/Node report builder
+        ↓
+Pachca API message + files + optional thread
+```
+
+The Cloudflare Workers do not calculate report data. They only dispatch the correct GitHub Actions workflow. Business logic stays in the bot folders.
+
+## Secrets
+
+Secrets are not committed. The active bots use:
+
+- `ABCAGE_ANALYZER_TOKEN`
+- `GOOGLE_SERVICE_ACCOUNT_JSON` for Python Google Sheets readers
+- `PACHCA_TOKEN`
+- `PACHCA_CHAT_ID`
+- `PACHCA_CHAT_ID_ACTIONS`
+- `PACHCA_CHAT_ID_MARKETING`
+- Cloudflare Worker secrets: `GITHUB_TOKEN`, `DISPATCH_SECRET`, `PACHCA_WEBHOOK_SECRET`
+
+Generated report files are ignored and should not be committed.
