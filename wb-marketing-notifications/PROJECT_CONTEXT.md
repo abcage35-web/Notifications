@@ -116,7 +116,7 @@ scripts/build-products-content-problems-plan-or-fbo-report.mjs
 Он делает:
 
 1. Загружает базовый список товаров из MCP/MySQL.
-2. Загружает маркетологов/кабинеты из Google Sheets.
+2. Загружает кабинет/ИП из ABCAGE Analyzer MCP и маркетолога из Google Sheets.
 3. Загружает CRM ID и ссылки дизайнов из Google Sheets.
 4. Читает открытый WB basket `card.json` по каждому артикулу.
 5. Фильтрует товары с проблемами контента.
@@ -137,6 +137,7 @@ scripts/build-products-content-problems-plan-or-fbo-report.mjs
 - `mp.mp_core__realtime_stocks_data`
 - `mp.mp_core__sales_plan`
 - `mp.wb_core__card`
+- `mp.accounts`
 
 Логика:
 
@@ -201,9 +202,18 @@ Basket host определяется по диапазонам `BASKET_VOL_RANGE
 Проблема видео: media.has_video !== true
 ```
 
+Кабинет/ИП берется из нашей БД: `mp.wb_core__card.account_id` / `mp.mp_core__realtime_stocks_data.account_id` -> `mp.accounts`.
+
+Нормализация кабинетов:
+
+```text
+ИП Карпачев -> Паша 1
+ИП Сытин -> Стас 1
+```
+
 ## Google Sheets источники
 
-### Маркетологи и кабинеты
+### Маркетологи
 
 CSV:
 
@@ -214,7 +224,6 @@ https://docs.google.com/spreadsheets/d/1STPnPgj8xSrvN-F3K96bDj_pmunCICHTjaj358pR
 Колонки:
 
 - `B` / index `1` - WB-артикул;
-- `C` / index `2` - кабинет;
 - `H` / index `7` - маркетолог.
 
 ### CRM ID и дизайны

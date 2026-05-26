@@ -238,19 +238,23 @@ async function fetchText(url) {
 
 async function loadMarketers() {
   const rows = parseCsv(await fetchText(MARKETERS_CSV_URL));
-  const cabinetByArticle = new Map();
   const marketerByArticle = new Map();
 
   for (const row of rows.slice(1)) {
     const article = normalizeArticle(row[1]);
     if (!article) continue;
-    const cabinet = String(row[2] || "").trim();
     const marketer = String(row[7] || "").trim();
-    if (cabinet && !cabinetByArticle.has(article)) cabinetByArticle.set(article, cabinet);
     if (marketer && !marketerByArticle.has(article)) marketerByArticle.set(article, marketer);
   }
 
-  return { cabinetByArticle, marketerByArticle };
+  return { marketerByArticle };
+}
+
+function normalizeCabinet(value) {
+  const text = String(value || "").trim();
+  if (text === "ИП Карпачев") return "Паша 1";
+  if (text === "ИП Сытин") return "Стас 1";
+  return text || "";
 }
 
 function extractWbArticles(text) {
@@ -315,15 +319,17 @@ async function loadBaseArticlesFromMysql() {
     const rows = await db.query(`
       WITH fbo_by_sku AS (
         SELECT CAST(sku AS UNSIGNED) AS sku_num,
+               account_id,
                SUM(COALESCE(fbo_real, 0)) AS fbo
         FROM mp.mp_core__realtime_stocks_data
         WHERE date = '${stockDate}'
           AND mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
           AND sku REGEXP '^[0-9]+$'
-        GROUP BY sku_num
+        GROUP BY sku_num, account_id
       ),
       plan_by_sku AS (
         SELECT CAST(card.sku AS UNSIGNED) AS sku_num,
+               card.account_id,
                SUM(COALESCE(plan.correct_count, plan.planned_count, 0)) AS plan_qty
         FROM mp.wb_core__card card
         JOIN mp.mp_core__sales_plan plan
@@ -332,33 +338,64 @@ async function loadBaseArticlesFromMysql() {
          AND plan.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
          AND plan.planning_date = '${planMonth}'
         WHERE card.sku REGEXP '^[0-9]+$'
-        GROUP BY sku_num
+        GROUP BY sku_num, card.account_id
       ),
-      unioned AS (
-        SELECT sku_num, plan_qty, 0 AS fbo FROM plan_by_sku
-        UNION ALL
-        SELECT sku_num, 0 AS plan_qty, fbo FROM fbo_by_sku
+      by_account AS (
+        SELECT sku_num, account_id, SUM(plan_qty) AS plan_qty, SUM(fbo) AS fbo
+        FROM (
+          SELECT sku_num, account_id, plan_qty, 0 AS fbo FROM plan_by_sku
+          UNION ALL
+          SELECT sku_num, account_id, 0 AS plan_qty, fbo FROM fbo_by_sku
+        ) unioned
+        GROUP BY sku_num, account_id
+      ),
+      article_totals AS (
+        SELECT sku_num,
+               SUM(plan_qty) AS plan_qty,
+               SUM(fbo) AS fbo
+        FROM by_account
+        GROUP BY sku_num
+        HAVING plan_qty > 10 OR fbo > 10
       )
-      SELECT CAST(sku_num AS CHAR) AS article,
-             SUM(plan_qty) AS plan_qty,
-             SUM(fbo) AS fbo
-      FROM unioned
-      GROUP BY sku_num
-      HAVING plan_qty > 10 OR fbo > 10
-      ORDER BY sku_num;
+      SELECT CAST(account_rows.sku_num AS CHAR) AS article,
+             account_rows.account_id,
+             COALESCE(account.account_name_alias, account.name) AS cabinet,
+             account_rows.plan_qty,
+             account_rows.fbo,
+             article_totals.plan_qty AS total_plan_qty,
+             article_totals.fbo AS total_fbo
+      FROM by_account account_rows
+      JOIN article_totals ON article_totals.sku_num = account_rows.sku_num
+      LEFT JOIN mp.accounts account ON account.id = account_rows.account_id
+      ORDER BY account_rows.sku_num, account_rows.fbo DESC, account_rows.plan_qty DESC, account_rows.account_id;
     `);
 
-    const baseByArticle = new Map(
-      rows.map((row) => [
-        normalizeArticle(row.article),
-        {
-          article: normalizeArticle(row.article),
-          planQty: Number(row.plan_qty || 0),
-          fbo: Number(row.fbo || 0),
-        },
-      ]),
-    );
-    return { stockDate, planMonth, baseByArticle };
+    const baseByArticle = new Map();
+    const cabinetByArticle = new Map();
+    const cabinetsByArticle = new Map();
+    for (const row of rows) {
+      const article = normalizeArticle(row.article);
+      if (!article) continue;
+      if (!baseByArticle.has(article)) {
+        baseByArticle.set(article, {
+          article,
+          planQty: Number(row.total_plan_qty || 0),
+          fbo: Number(row.total_fbo || 0),
+        });
+      }
+
+      const cabinet = normalizeCabinet(row.cabinet);
+      if (!cabinet) continue;
+      const cabinets = cabinetsByArticle.get(article) || [];
+      if (!cabinets.includes(cabinet)) cabinets.push(cabinet);
+      cabinetsByArticle.set(article, cabinets);
+    }
+
+    for (const [article, cabinets] of cabinetsByArticle.entries()) {
+      cabinetByArticle.set(article, cabinets.join(", "));
+    }
+
+    return { stockDate, planMonth, baseByArticle, cabinetByArticle };
   } finally {
     db.close();
   }
@@ -859,7 +896,7 @@ function buildMarkdown({
     "",
     "**Маркетолог:** тег из Google Sheets, колонка H по артикулу из колонки B.",
     "",
-    "**Кабинет:** значение из Google Sheets, колонка C по артикулу из колонки B.",
+    "**Кабинет:** значение из нашей БД: `mp.wb_core__card.account_id` / `mp.mp_core__realtime_stocks_data.account_id` -> `mp.accounts`; ИП Карпачев нормализуется в Паша 1, ИП Сытин - в Стас 1.",
     "",
     "**Дизайн:** ссылка из Google Sheets, колонка S по WB-артикулу из ссылок www.wildberries.ru в колонке E.",
     "",
@@ -960,7 +997,7 @@ function validate(tableRows, allContentTableRows, recommendationDetailRows) {
 
 async function main() {
   const generatedAt = nowIso();
-  const { stockDate, planMonth, baseByArticle } = await loadBaseArticlesFromMysql();
+  const { stockDate, planMonth, baseByArticle, cabinetByArticle } = await loadBaseArticlesFromMysql();
   const cardArticles = [...baseByArticle.keys()];
 
   process.stderr.write(`Base articles: ${baseByArticle.size}\n`);
@@ -981,7 +1018,7 @@ async function main() {
     allRows,
     baseByArticle,
     stockDate,
-    cabinetByArticle: marketers.cabinetByArticle,
+    cabinetByArticle,
     marketerByArticle: marketers.marketerByArticle,
     designLinksByArticle: designs.designLinksByArticle,
     crmIdsByArticle: designs.crmIdsByArticle,
