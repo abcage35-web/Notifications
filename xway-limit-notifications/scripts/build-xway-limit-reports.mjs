@@ -826,7 +826,7 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
 
 function buildPachcaThreadMessage() {
   return [
-    "**Файлы:**",
+    "**Описание файлов:**",
     `• \`${path.basename(OUT_LIMITS)}\`: артикулы с РК, где не установлен лимит расхода или не настроено правило пополнения бюджета.`,
     `• \`${path.basename(OUT_ACTIVITY)}\`: артикулы с вылетами по лимиту расходов или нехватке бюджета за период отчета.`,
     `• \`${path.basename(OUT_AUTO)}\`: РК с расходом, где не настроены автоисключения поиска; кластеры и расходы добавлены для проверки.`,
