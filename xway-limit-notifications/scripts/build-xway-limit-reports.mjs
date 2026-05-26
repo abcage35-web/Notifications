@@ -629,6 +629,13 @@ function markdownTable(headers, rows) {
   ].join("\n");
 }
 
+function markdownNote(lines) {
+  return [
+    "> **Примечание:**",
+    ...lines.map((line) => `> • ${line}`),
+  ].join("\n");
+}
+
 function buildLimitSetupMarkdown(rows, meta) {
   const tableRows = rows.map((row) => [
     ...baseTableCells(row),
@@ -641,15 +648,17 @@ function buildLimitSetupMarkdown(rows, meta) {
     `Период: ${meta.start} - ${meta.end}`,
     `Источник: ${SOURCE_URL}`,
     "",
-    `Строк с проблемами: ${rows.length}`,
-    `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
-    `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
-    `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
-    "",
     markdownTable(
       ["Артикул", "XWAY", "Название товара", "Категория", "Маркетолог", "Остаток FBO", "Тип РК", "Проблема лимит расхода", "Проблема пополнение бюджета"],
       tableRows,
     ),
+    "",
+    markdownNote([
+      `Строк с проблемами: ${rows.length}`,
+      `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
+      `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
+      `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
+    ]),
     "",
   ].join("\n");
 }
@@ -671,16 +680,6 @@ function buildActivityMarkdown(rows, meta) {
     `Период: ${meta.start} - ${meta.end}`,
     `Источник: ${SOURCE_URL}`,
     "",
-    `Строк с вылетами: ${rows.length}`,
-    `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
-    `Порог вылета: статус «лимит расходов» или «нехватка бюджета» подряд не меньше ${LIMIT_ACTIVITY_THRESHOLD_HOURS} ч`,
-    "Метод истории статусов: status-pause-history limit=60, fallback до 120 при полной странице",
-    `Fallback до 120: ${meta.fallback120}`,
-    `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
-    `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
-    `Ошибок догрузки истории статусов: ${meta.errors}`,
-    `Время полного цикла сборки: ${String(Math.round(meta.elapsedSeconds * 10) / 10).replace(".", ",")} сек`,
-    "",
     markdownTable(
       [
         "Артикул",
@@ -701,6 +700,18 @@ function buildActivityMarkdown(rows, meta) {
       tableRows,
     ),
     "",
+    markdownNote([
+      `Строк с вылетами: ${rows.length}`,
+      `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
+      `Порог вылета: статус «лимит расходов» или «нехватка бюджета» подряд не меньше ${LIMIT_ACTIVITY_THRESHOLD_HOURS} ч`,
+      "Метод истории статусов: status-pause-history limit=60, fallback до 120 при полной странице",
+      `Fallback до 120: ${meta.fallback120}`,
+      `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
+      `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
+      `Ошибок догрузки истории статусов: ${meta.errors}`,
+      `Время полного цикла сборки: ${String(Math.round(meta.elapsedSeconds * 10) / 10).replace(".", ",")} сек`,
+    ]),
+    "",
   ].join("\n");
 }
 
@@ -720,20 +731,6 @@ function buildAutoMarkdown(rows, meta) {
     `Период: ${meta.start} - ${meta.end}`,
     `Источник: ${SOURCE_URL}`,
     "",
-    `Строк с проблемами: ${rows.length}`,
-    `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
-    "Стартовый фильтр: только CPM РК ACTIVE/PAUSED; FROZEN и CPC исключаются до проверки деталей",
-    "Фильтр строк: Расход за период > 0; для Единой ставки Кластеры с тратами за 3 дня > 0",
-    "Кластеры с тратами: normquery expense > 0 и excluded != true за период отчета",
-    "Зафиксированные кластеры: normquery fixed = true",
-    `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
-    `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
-    `CPC пропущено в смешанных товарах: ${meta.cpcSkipped}`,
-    `Настроено РК: ${meta.configured}`,
-    `Ошибок догрузки автоисключений: ${meta.autoErrors}`,
-    `Ошибок догрузки кластеров: ${meta.clusterErrors}`,
-    `Время полного цикла сборки: ${String(Math.round(meta.elapsedSeconds * 10) / 10).replace(".", ",")} сек`,
-    "",
     markdownTable(
       [
         "Артикул",
@@ -752,6 +749,22 @@ function buildAutoMarkdown(rows, meta) {
       ],
       tableRows,
     ),
+    "",
+    markdownNote([
+      `Строк с проблемами: ${rows.length}`,
+      `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
+      "Стартовый фильтр: только CPM РК ACTIVE/PAUSED; FROZEN и CPC исключаются до проверки деталей",
+      "Фильтр строк: Расход за период > 0; для Единой ставки Кластеры с тратами за 3 дня > 0",
+      "Кластеры с тратами: normquery expense > 0 и excluded != true за период отчета",
+      "Зафиксированные кластеры: normquery fixed = true",
+      `Товаров с РК/сигналом РК в XWAY до фильтра FBO: ${meta.initialCandidates}`,
+      `Проверено после фильтра БД FBO > ${FBO_THRESHOLD}: ${meta.checkedProducts}`,
+      `CPC пропущено в смешанных товарах: ${meta.cpcSkipped}`,
+      `Настроено РК: ${meta.configured}`,
+      `Ошибок догрузки автоисключений: ${meta.autoErrors}`,
+      `Ошибок догрузки кластеров: ${meta.clusterErrors}`,
+      `Время полного цикла сборки: ${String(Math.round(meta.elapsedSeconds * 10) / 10).replace(".", ",")} сек`,
+    ]),
     "",
   ].join("\n");
 }
