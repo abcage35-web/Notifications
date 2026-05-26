@@ -15,6 +15,7 @@ const SELLER_RECOMMENDATIONS_JSON = path.join(ROOT, "seller-recommendations-sugg
 const BASKET_CACHE_PATH = path.join(ROOT, ".wb-basket-cache.json");
 const INCOMPLETE_CONTENT_REPORT_TITLE = "Незаполненный контент по Артикулам";
 const INCOMPLETE_CONTENT_MESSAGE_TITLE = `${INCOMPLETE_CONTENT_REPORT_TITLE} (Ежемесячный / 20 число месяца)`;
+const MARKETER_MENTIONS = "@a.beaver @a.manokhin @a.nekrasov";
 const REPORT_TZ = "Asia/Tbilisi";
 const GENERATED_AT_TZ = "Europe/Moscow";
 const ANALYZER_URL = "https://mcp.mpvibe.ru/mcp/analyzer";
@@ -692,6 +693,7 @@ function buildPachcaMessage({ tableRows, generatedAt, stockDate, planMonth }) {
 
   const lines = [
     `**${INCOMPLETE_CONTENT_MESSAGE_TITLE}**`,
+    MARKETER_MENTIONS,
     "",
     `_Сформировано: ${generatedAtText}_`,
     `_Фильтр: план продаж за ${planMonth.slice(0, 7)} > 10 или FBO > 10 на ${stockDate}._`,
@@ -735,7 +737,7 @@ function buildPachcaMarketerSummaryMessage(tableRows) {
 
     const marketerTitle =
       group.marketer === "Без маркетолога"
-        ? "Без маркетолога: @a.beaver @a.manokhin @a.nekrasov"
+        ? `Без маркетолога: ${MARKETER_MENTIONS}`
         : group.marketer;
     lines.push(`**${marketerTitle}**`);
     for (const row of visibleRows) {
