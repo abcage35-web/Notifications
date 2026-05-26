@@ -763,8 +763,7 @@ def append_metric(lines, title, mtd_values, yesterday_values, day_before_values,
     value = formatter(mtd_values)
     formatted_value = f"**`{value}`**" if emphasize else f"`{value}`"
     lines.append(f"• {title}: {formatted_value}")
-    lines.append(f"  ◦ вчера: `{formatter(yesterday_values)}`")
-    lines.append(f"  ◦ позавчера: `{formatter(day_before_values)}`")
+    lines.append(f"• • вчера < позавчера: `{formatter(yesterday_values)}` < `{formatter(day_before_values)}`")
 
 
 def build_message(rows, date_from: date, date_to: date):
