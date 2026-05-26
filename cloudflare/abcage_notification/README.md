@@ -5,6 +5,7 @@ Cloudflare Worker that triggers GitHub Actions workflows for WB notification rep
 The Worker does not build or send the Pachca report itself. It only calls GitHub's `workflow_dispatch` API for:
 
 - repository: `abcage35-web/Notifications`
+- combined RK/prices workflow: `.github/workflows/wb-rk-prices-notifications.yml`
 - FBO workflow: `.github/workflows/wb-fbo-supply-notifications.yml`
 - actions workflow: `.github/workflows/wb-action-notifications.yml`
 - marketing workflow: `.github/workflows/wb-marketing-notifications.yml`
@@ -21,12 +22,10 @@ GitHub can return either `204 No Content` or `200 OK` with a `workflow_run_id`; 
 Cloudflare cron:
 
 ```text
-0 5 * * * - FBO report, 08:00 MSK
-5 5 * * * - actions report, 08:05 MSK
+0 5 * * * - combined RK/prices reports, 08:00 MSK: FBO first, actions second
 30 5 * * 1 - XWAY bidder limit report, Monday 08:30 MSK
+0 6 * * * - WB articles report, 09:00 MSK
 ```
-
-The WB articles report uses GitHub Actions `schedule` at `0 6 * * *` instead of a Worker cron trigger to stay within the Cloudflare account cron-trigger limit. The Worker still supports the `/отчет_уведомление` backup command.
 
 ## Secrets
 

@@ -10,11 +10,11 @@
 
 | Бот | Папка | Команда Пачки | Плановый чат | Расписание |
 |---|---|---|---|---|
-| FBO-поставки WB | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | `36815841` через `PACHCA_CHAT_ID` | каждый день 08:00 МСК |
-| Предустановленные действия WB | `wb-action-notifications/` | `/действия_уведомление` | `36815841` через `PACHCA_CHAT_ID_ACTIONS` | каждый день 08:05 МСК |
+| FBO-поставки WB | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | `36815841` через `PACHCA_CHAT_ID` | каждый день 08:00 МСК в общем workflow РК/цены |
+| Предустановленные действия WB | `wb-action-notifications/` | `/действия_уведомление` | `36815841` через `PACHCA_CHAT_ID_ACTIONS` | каждый день 08:00 МСК после FBO в общем workflow РК/цены |
 | Контент WB | `wb-marketing-notifications/` | `/контент_уведомление` | `39531378` через `PACHCA_CHAT_ID_MARKETING` или Worker var | каждое 20 число в 13:00 МСК |
 | Проблемы биддера XWAY | `xway-limit-notifications/` | `/биддер_уведомление` | `39531378` через `PACHCA_CHAT_ID_XWAY_LIMITS` | каждый понедельник 08:30 МСК |
-| Артикулярный отчет WB | `wb-articles-report-notifications/` | `/отчет_уведомление` | `39531378` через `PACHCA_CHAT_ID_REPORT` или fallback workflow | каждый день 09:00 МСК через GitHub Actions schedule |
+| Артикулярный отчет WB | `wb-articles-report-notifications/` | `/отчет_уведомление` | `39531378` через `PACHCA_CHAT_ID_REPORT` или fallback workflow | каждый день 09:00 МСК через Cloudflare cron |
 
 Тестовый чат для ручных прогонов: `39363429`.
 
@@ -30,6 +30,7 @@
 │       ├── wb-articles-report-notifications.yml
 │       ├── wb-fbo-supply-notifications.yml
 │       ├── wb-marketing-notifications.yml
+│       ├── wb-rk-prices-notifications.yml
 │       └── xway-limit-notifications.yml
 ├── cloudflare/
 │   ├── abcage_notification/
@@ -93,7 +94,7 @@
 
 Текущая ветка `main` включает эти ключевые изменения:
 
-- FBO и actions перенесены на Cloudflare cron через GitHub `workflow_dispatch`.
+- FBO и actions запускаются одним Cloudflare cron в 08:00 МСК через combined workflow `wb-rk-prices-notifications.yml`: сначала FBO, затем actions.
 - Добавлен резервный ручной запуск из Пачки через команды `/фбо_уведомление`, `/действия_уведомление`, `/контент_уведомление`.
 - Для БЗО добавлен резолв сотрудника через Pachca `/users`, чтобы тег был настоящим mention `<@user_id>`, а не просто текстом.
 - Actions-бот получил сегменты `НАСТРОИТЬ ЦЕНУ`, `ВКЛЮЧИТЬ БЗО`, `СОЗДАТЬ РК`, `ВЫКЛЮЧИТЬ РК`, `ПРОВЕРИТЬ АКТИВНОСТЬ РК`.
@@ -103,6 +104,7 @@
 - Для WB basket `card.json` добавлено ускорение и кеширование определения basket host.
 - Добавлен XWAY-бот `/биддер_уведомление`: еженедельно присылает проблемы лимитов/бюджетов, вылеты лимитов и автоисключения поиска; название, категория и FBO берутся из ABCAGE Analyzer DB.
 - Добавлен артикулярный отчет WB `/отчет_уведомление`: ежедневно в 09:00 МСК отправляет 30-дневный Markdown-файл и сообщение с ДРР MTD по IP/кабинетам и общим WB.
+- Сообщение артикулярного отчета в Пачку отформатировано без markdown-таблицы: общий WB-блок и список по IP/кабинетам.
 
 ## Общая архитектура
 
@@ -140,12 +142,10 @@ Cloudflare Worker не собирает бизнес-данные. Он толь
 Cron triggers из `wrangler.jsonc`:
 
 ```text
-0 5 * * * - FBO, 08:00 МСК
-5 5 * * * - actions, 08:05 МСК
+0 5 * * * - общий workflow РК/цены: FBO, затем actions, 08:00 МСК
 30 5 * * 1 - XWAY bidder limits, каждый понедельник 08:30 МСК
+0 6 * * * - артикулярный отчет WB, 09:00 МСК
 ```
-
-Артикулярный отчет WB запускается по расписанию через GitHub Actions `schedule` (`0 6 * * *`), чтобы не увеличивать число Cloudflare cron-триггеров сверх лимита аккаунта. Worker поддерживает для него ручную команду `/отчет_уведомление`.
 
 Поддерживаемые команды Пачки:
 
@@ -170,6 +170,7 @@ Endpoints:
 - `GITHUB_REF=main`
 - `GITHUB_FBO_WORKFLOW_ID=wb-fbo-supply-notifications.yml`
 - `GITHUB_ACTIONS_WORKFLOW_ID=wb-action-notifications.yml`
+- `GITHUB_RK_PRICES_WORKFLOW_ID=wb-rk-prices-notifications.yml`
 - `GITHUB_MARKETING_WORKFLOW_ID=wb-marketing-notifications.yml`
 - `GITHUB_XWAY_LIMIT_WORKFLOW_ID=xway-limit-notifications.yml`
 - `GITHUB_REPORT_WORKFLOW_ID=wb-articles-report-notifications.yml`
@@ -244,6 +245,23 @@ Fallback чата: `39363429`, если secret не задан.
 ```bash
 python send_pachca_report.py
 ```
+
+### `.github/workflows/wb-rk-prices-notifications.yml`
+
+Запускает Python 3.12 и последовательно отправляет два отчета в одном job:
+
+1. `wb-fbo-supply-notifications/send_pachca_report.py`
+2. `wb-action-notifications/send_pachca_report.py`
+
+Секреты:
+
+- `ABCAGE_ANALYZER_TOKEN`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `PACHCA_TOKEN`
+- `PACHCA_CHAT_ID`
+- `PACHCA_CHAT_ID_ACTIONS`
+
+Cloudflare cron `0 5 * * *` запускает именно этот workflow, чтобы FBO и actions приходили в один тайминг 08:00 МСК и обрабатывались последовательно.
 
 ### `.github/workflows/wb-marketing-notifications.yml`
 

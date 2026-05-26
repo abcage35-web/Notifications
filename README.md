@@ -10,8 +10,8 @@ Full operational context is documented in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.m
 
 | Bot | Folder | Pachca command | Schedule | Main output |
 |---|---|---|---|---|
-| FBO supplies | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | every day 08:00 MSK | FBO supply message + Markdown file + optional thread for missing marketers |
-| WB actions | `wb-action-notifications/` | `/действия_уведомление` | every day 08:05 MSK | action segments by price, BZO, RK creation, RK shutdown, RK activity |
+| FBO supplies | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | every day 08:00 MSK in RK/prices bundle | FBO supply message + Markdown file + optional thread for missing marketers |
+| WB actions | `wb-action-notifications/` | `/действия_уведомление` | every day 08:00 MSK after FBO | action segments by price, BZO, RK creation, RK shutdown, RK activity |
 | Content | `wb-marketing-notifications/` | `/контент_уведомление` | every 20th day 13:00 MSK | content completeness message + 3 Markdown files + thread summaries |
 | XWAY bidder limits | `xway-limit-notifications/` | `/биддер_уведомление` | every Monday 08:30 MSK | bidder limit/budget, limit activity and auto-exclusion reports |
 | WB articles report | `wb-articles-report-notifications/` | `/отчет_уведомление` | every day 09:00 MSK | 30-day article-level marketer Markdown report + MTD DRR message |
@@ -25,6 +25,7 @@ Full operational context is documented in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.m
 │   ├── wb-articles-report-notifications.yml
 │   ├── wb-fbo-supply-notifications.yml
 │   ├── wb-marketing-notifications.yml
+│   ├── wb-rk-prices-notifications.yml
 │   └── xway-limit-notifications.yml
 ├── cloudflare/
 │   ├── abcage_notification/

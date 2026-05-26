@@ -23,7 +23,7 @@ Generated report files are ignored by git.
 
 GitHub Actions workflow `.github/workflows/wb-articles-report-notifications.yml` can be started manually through `workflow_dispatch`.
 
-The daily schedule is owned by GitHub Actions `schedule`, which runs every day at 09:00 Moscow time (`06:00 UTC`). Cloudflare Worker `cloudflare/abcage_notification` is used for the manual Pachca backup command.
+The daily schedule is owned by Cloudflare Worker `cloudflare/abcage_notification`, which calls GitHub's workflow dispatch API every day at 09:00 Moscow time (`06:00 UTC`).
 
 Manual Pachca backup command:
 

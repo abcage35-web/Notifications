@@ -8,15 +8,23 @@ const REPORTS = {
     fallbackWorkflowEnv: "GITHUB_WORKFLOW_ID",
     defaultWorkflowId: "wb-fbo-supply-notifications.yml",
     defaultRunLabel: "08:00 по МСК",
-    cron: "0 5 * * *",
+    cron: "",
   },
   actions: {
     key: "actions",
     command: "/действия_уведомление",
     workflowEnv: "GITHUB_ACTIONS_WORKFLOW_ID",
     defaultWorkflowId: "wb-action-notifications.yml",
-    defaultRunLabel: "08:05 по МСК",
-    cron: "5 5 * * *",
+    defaultRunLabel: "08:00 по МСК",
+    cron: "",
+  },
+  rk_prices: {
+    key: "rk_prices",
+    command: "",
+    workflowEnv: "GITHUB_RK_PRICES_WORKFLOW_ID",
+    defaultWorkflowId: "wb-rk-prices-notifications.yml",
+    defaultRunLabel: "08:00 по МСК",
+    cron: "0 5 * * *",
   },
   marketing: {
     key: "marketing",
@@ -40,7 +48,7 @@ const REPORTS = {
     workflowEnv: "GITHUB_REPORT_WORKFLOW_ID",
     defaultWorkflowId: "wb-articles-report-notifications.yml",
     defaultRunLabel: "09:00 по МСК",
-    cron: "",
+    cron: "0 6 * * *",
   },
 };
 
@@ -156,6 +164,10 @@ function reportByKey(reportKey) {
     "wb-action-notifications.yml": "actions",
     fbo: "fbo",
     "wb-fbo-supply-notifications.yml": "fbo",
+    rk_prices: "rk_prices",
+    rk: "rk_prices",
+    prices: "rk_prices",
+    "wb-rk-prices-notifications.yml": "rk_prices",
     content: "marketing",
     marketing: "marketing",
     "wb-marketing-notifications.yml": "marketing",
@@ -176,7 +188,7 @@ function reportByKey(reportKey) {
 
 function reportByCommand(text) {
   const normalized = normalizeCommandText(text);
-  return Object.values(REPORTS).find((report) => normalized === report.command);
+  return Object.values(REPORTS).find((report) => report.command && normalized === report.command);
 }
 
 function reportByCron(cron) {
@@ -270,7 +282,7 @@ export default {
         schedules: Object.fromEntries(
           Object.values(REPORTS).filter((report) => report.cron).map((report) => [report.key, report.cron]),
         ),
-        backupCommands: Object.values(REPORTS).map((report) => report.command),
+        backupCommands: Object.values(REPORTS).filter((report) => report.command).map((report) => report.command),
       });
     }
 

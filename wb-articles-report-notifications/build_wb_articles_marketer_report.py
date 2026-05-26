@@ -158,6 +158,10 @@ def fmt_rub(value):
     return f"{fmt_decimal(value, digits=0, zero_plain=False)} ₽"
 
 
+def fmt_date(value: date):
+    return value.strftime("%d.%m.%Y")
+
+
 def fmt_one(value):
     if value is None:
         return ""
@@ -710,27 +714,35 @@ def build_message(rows, date_from: date, date_to: date):
     total_drr = pct(total_spend, total_revenue)
     grouped = aggregate_drr(current_rows)
     output_days = (date_to - date_from).days + 1
+    by_ip = defaultdict(list)
+    for (ip, cabinet), values in sorted(grouped.items(), key=lambda item: (item[0][0], item[0][1])):
+        by_ip[ip].append((cabinet, values))
 
     lines = [
-        f"WB: отчет для сводки маркетолога ({REPORT_RUN_LABEL})",
-        f"Период файла: последние {output_days} дней, по {date_to.isoformat()} включительно.",
-        f"ДРР с начала месяца: {current_month_from.isoformat()} - {date_to.isoformat()}.",
+        "**WB: отчет для сводки маркетолога**",
+        f"`{REPORT_RUN_LABEL}`",
         "",
-        f"WB общий: ДРР {fmt_percent(total_drr, blank_if_none=False)}, траты {fmt_rub(total_spend)}, выручка {fmt_rub(total_revenue)}.",
+        f"**Период файла:** {fmt_date(date_from)} - {fmt_date(date_to)} ({output_days} дн.)",
+        f"**ДРР с начала месяца:** {fmt_date(current_month_from)} - {fmt_date(date_to)}",
         "",
-        "| IP | Кабинет | ДРР MTD | Траты РК | Выручка WB |",
-        "|---|---|---:|---:|---:|",
+        "**WB общий**",
+        f"ДРР: **{fmt_percent(total_drr, blank_if_none=False)}**",
+        f"Траты РК: `{fmt_rub(total_spend)}`",
+        f"Выручка WB: `{fmt_rub(total_revenue)}`",
+        "",
+        "**ДРР MTD по IP / кабинетам**",
     ]
-    for (ip, cabinet), values in sorted(grouped.items(), key=lambda item: (item[0][0], item[0][1])):
-        revenue = values["orders_rub"]
-        spend = values["ad_spend"]
-        lines.append(
-            f"| {md_cell(ip)} | {md_cell(cabinet)} | {fmt_percent(pct(spend, revenue), blank_if_none=False)} | "
-            f"{fmt_rub(spend)} | {fmt_rub(revenue)} |"
-        )
-    if not grouped:
-        lines.append("| - | - | 0.00% | 0 ₽ | 0 ₽ |")
-    lines.extend(["", "Markdown-файл с таблицами приложен к сообщению."])
+    if not by_ip:
+        lines.append("Нет данных за текущий месяц.")
+    for ip, cabinets in by_ip.items():
+        lines.append("")
+        lines.append(f"**{ip}**")
+        for cabinet, values in cabinets:
+            revenue = values["orders_rub"]
+            spend = values["ad_spend"]
+            lines.append(f"• {cabinet}: ДРР **{fmt_percent(pct(spend, revenue), blank_if_none=False)}**")
+            lines.append(f"  РК `{fmt_rub(spend)}` / WB `{fmt_rub(revenue)}`")
+    lines.extend(["", "_Markdown-файл с таблицами приложен к сообщению._"])
     return "\n".join(lines)
 
 
