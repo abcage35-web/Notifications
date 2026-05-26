@@ -61,14 +61,20 @@ jobs:
       - name: Build and send Pachca report
         run: npm run send
 
+      - name: Prepare artifact files
+        if: always()
+        run: |
+          mkdir -p artifacts
+          cp "1. Проблемы: настройка лимитов и бюджетов.md" artifacts/xway-limit-setup.md 2>/dev/null || true
+          cp "2. Проблемы: вылеты лимитов.md" artifacts/xway-limit-activity.md 2>/dev/null || true
+          cp "3. Проблемы: Автоисключения Поиска.md" artifacts/xway-auto-exclusions.md 2>/dev/null || true
+          cp "Инструкция: отчеты по проблемам лимитов.md" artifacts/xway-limit-instruction.md 2>/dev/null || true
+          cp xway_limit_reports_*.json artifacts/ 2>/dev/null || true
+
       - name: Upload generated reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: xway-limit-notifications-report
-          path: |
-            xway-limit-notifications/1. Проблемы: настройка лимитов и бюджетов.md
-            xway-limit-notifications/2. Проблемы: вылеты лимитов.md
-            xway-limit-notifications/3. Проблемы: Автоисключения Поиска.md
-            xway-limit-notifications/xway_limit_reports_*.json
+          path: xway-limit-notifications/artifacts/*
           if-no-files-found: ignore
