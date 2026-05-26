@@ -34,6 +34,14 @@ const REPORTS = {
     defaultRunLabel: "08:30 по МСК",
     cron: "30 5 * * 1",
   },
+  report: {
+    key: "report",
+    command: "/отчет_уведомление",
+    workflowEnv: "GITHUB_REPORT_WORKFLOW_ID",
+    defaultWorkflowId: "wb-articles-report-notifications.yml",
+    defaultRunLabel: "09:00 по МСК",
+    cron: "0 6 * * *",
+  },
 };
 
 function requireEnv(env, name) {
@@ -157,6 +165,11 @@ function reportByKey(reportKey) {
     xway_limits: "xway_limits",
     xway: "xway_limits",
     "xway-limit-notifications.yml": "xway_limits",
+    report: "report",
+    reports: "report",
+    marketer_report: "report",
+    wb_report: "report",
+    "wb-articles-report-notifications.yml": "report",
   };
   return REPORTS[aliases[normalized] || normalized] || REPORTS.fbo;
 }

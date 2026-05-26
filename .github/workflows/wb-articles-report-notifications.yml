@@ -1,0 +1,79 @@
+name: WB Articles Report Notifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      pachca_chat_id:
+        description: "Optional Pachca chat id override for manual/backup runs"
+        required: false
+        type: string
+      report_run_label:
+        description: "Optional label shown in the Pachca report title"
+        required: false
+        default: "09:00 по МСК"
+        type: string
+      report_date_from:
+        description: "Optional report start date YYYY-MM-DD"
+        required: false
+        type: string
+      report_date_to:
+        description: "Optional report end date YYYY-MM-DD"
+        required: false
+        type: string
+      report_stock_date:
+        description: "Optional FBO stock date YYYY-MM-DD"
+        required: false
+        type: string
+      report_window_days:
+        description: "Output window in days"
+        required: false
+        default: "30"
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: wb-articles-report-notifications-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: wb-articles-report-notifications
+    env:
+      REPORT_TZ: Europe/Moscow
+      ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
+      PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_REPORT || '39531378' }}
+      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '09:00 по МСК' }}
+      REPORT_DATE_FROM: ${{ inputs.report_date_from }}
+      REPORT_DATE_TO: ${{ inputs.report_date_to }}
+      REPORT_STOCK_DATE: ${{ inputs.report_stock_date }}
+      REPORT_WINDOW_DAYS: ${{ inputs.report_window_days || '30' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build and send Pachca report
+        run: python send_pachca_report.py
+
+      - name: Upload generated reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-articles-report-notifications-report
+          path: |
+            wb-articles-report-notifications/wb_articles_marketer_metrics_*.md
+            wb-articles-report-notifications/wb_articles_marketer_metrics_*.json
+          if-no-files-found: ignore

@@ -6,7 +6,7 @@
 
 ## Текущие боты
 
-В репозитории сейчас 3 рабочих бота:
+В репозитории сейчас 5 рабочих ботов:
 
 | Бот | Папка | Команда Пачки | Плановый чат | Расписание |
 |---|---|---|---|---|
@@ -14,6 +14,7 @@
 | Предустановленные действия WB | `wb-action-notifications/` | `/действия_уведомление` | `36815841` через `PACHCA_CHAT_ID_ACTIONS` | каждый день 08:05 МСК |
 | Контент WB | `wb-marketing-notifications/` | `/контент_уведомление` | `39531378` через `PACHCA_CHAT_ID_MARKETING` или Worker var | каждое 20 число в 13:00 МСК |
 | Проблемы биддера XWAY | `xway-limit-notifications/` | `/биддер_уведомление` | `39531378` через `PACHCA_CHAT_ID_XWAY_LIMITS` | каждый понедельник 08:30 МСК |
+| Артикулярный отчет WB | `wb-articles-report-notifications/` | `/отчет_уведомление` | `39531378` через `PACHCA_CHAT_ID_REPORT` или fallback workflow | каждый день 09:00 МСК |
 
 Тестовый чат для ручных прогонов: `39363429`.
 
@@ -26,6 +27,7 @@
 ├── .github/
 │   └── workflows/
 │       ├── wb-action-notifications.yml
+│       ├── wb-articles-report-notifications.yml
 │       ├── wb-fbo-supply-notifications.yml
 │       ├── wb-marketing-notifications.yml
 │       └── xway-limit-notifications.yml
@@ -46,6 +48,12 @@
 │   ├── PROJECT_CONTEXT.md
 │   ├── README.md
 │   ├── build_action_report.py
+│   ├── requirements.txt
+│   └── send_pachca_report.py
+├── wb-articles-report-notifications/
+│   ├── PROJECT_CONTEXT.md
+│   ├── README.md
+│   ├── build_wb_articles_marketer_report.py
 │   ├── requirements.txt
 │   └── send_pachca_report.py
 ├── wb-fbo-supply-notifications/
@@ -94,6 +102,7 @@
 - Добавлен контент-бот WB с тремя Markdown-файлами и ежемесячным расписанием.
 - Для WB basket `card.json` добавлено ускорение и кеширование определения basket host.
 - Добавлен XWAY-бот `/биддер_уведомление`: еженедельно присылает проблемы лимитов/бюджетов, вылеты лимитов и автоисключения поиска; название, категория и FBO берутся из ABCAGE Analyzer DB.
+- Добавлен артикулярный отчет WB `/отчет_уведомление`: ежедневно в 09:00 МСК отправляет 30-дневный Markdown-файл и сообщение с ДРР MTD по IP/кабинетам и общим WB.
 
 ## Общая архитектура
 
@@ -124,7 +133,7 @@ Cloudflare Worker не собирает бизнес-данные. Он толь
 
 ### `cloudflare/abcage_notification`
 
-Общий диспетчер для FBO, actions и резервной команды content.
+Общий диспетчер для FBO, actions, XWAY, артикулярного отчета и резервной команды content.
 
 Файл: `cloudflare/abcage_notification/src/index.js`.
 
@@ -134,6 +143,7 @@ Cron triggers из `wrangler.jsonc`:
 0 5 * * * - FBO, 08:00 МСК
 5 5 * * * - actions, 08:05 МСК
 30 5 * * 1 - XWAY bidder limits, каждый понедельник 08:30 МСК
+0 6 * * * - артикулярный отчет WB, 09:00 МСК
 ```
 
 Поддерживаемые команды Пачки:
@@ -143,6 +153,7 @@ Cron triggers из `wrangler.jsonc`:
 /действия_уведомление
 /контент_уведомление
 /биддер_уведомление
+/отчет_уведомление
 ```
 
 Endpoints:
@@ -160,6 +171,7 @@ Endpoints:
 - `GITHUB_ACTIONS_WORKFLOW_ID=wb-action-notifications.yml`
 - `GITHUB_MARKETING_WORKFLOW_ID=wb-marketing-notifications.yml`
 - `GITHUB_XWAY_LIMIT_WORKFLOW_ID=xway-limit-notifications.yml`
+- `GITHUB_REPORT_WORKFLOW_ID=wb-articles-report-notifications.yml`
 
 Secrets:
 
@@ -280,6 +292,32 @@ xway-limit-notifications-${{ github.ref }}
 ```
 
 Workflow принимает `pachca_chat_id`, `report_run_label`, `report_start`, `report_end`.
+
+### `.github/workflows/wb-articles-report-notifications.yml`
+
+Запускает Python 3.12 в папке `wb-articles-report-notifications/`.
+
+Секреты:
+
+- `ABCAGE_ANALYZER_TOKEN`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `PACHCA_TOKEN`
+- `PACHCA_CHAT_ID_REPORT`
+
+Fallback чата для расписания: `39531378`, если secret не задан. Для тестового ручного прогона передавать `pachca_chat_id=39363429`.
+
+Команда:
+
+```bash
+python send_pachca_report.py
+```
+
+Артефакты:
+
+```text
+wb-articles-report-notifications/wb_articles_marketer_metrics_*.md
+wb-articles-report-notifications/wb_articles_marketer_metrics_*.json
+```
 
 ## Общие источники данных
 

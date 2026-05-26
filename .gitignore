@@ -25,3 +25,6 @@ xway-limit-notifications/1. Проблемы: настройка лимитов 
 xway-limit-notifications/2. Проблемы: вылеты лимитов.md
 xway-limit-notifications/3. Проблемы: Автоисключения Поиска.md
 xway-limit-notifications/xway_limit_reports_*.json
+
+# WB articles report generated summaries
+wb-articles-report-notifications/wb_articles_marketer_metrics_*.json

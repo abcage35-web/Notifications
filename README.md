@@ -14,6 +14,7 @@ Full operational context is documented in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.m
 | WB actions | `wb-action-notifications/` | `/действия_уведомление` | every day 08:05 MSK | action segments by price, BZO, RK creation, RK shutdown, RK activity |
 | Content | `wb-marketing-notifications/` | `/контент_уведомление` | every 20th day 13:00 MSK | content completeness message + 3 Markdown files + thread summaries |
 | XWAY bidder limits | `xway-limit-notifications/` | `/биддер_уведомление` | every Monday 08:30 MSK | bidder limit/budget, limit activity and auto-exclusion reports |
+| WB articles report | `wb-articles-report-notifications/` | `/отчет_уведомление` | every day 09:00 MSK | 30-day article-level marketer Markdown report + MTD DRR message |
 
 ## Repository Structure
 
@@ -21,6 +22,7 @@ Full operational context is documented in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.m
 .
 ├── .github/workflows/
 │   ├── wb-action-notifications.yml
+│   ├── wb-articles-report-notifications.yml
 │   ├── wb-fbo-supply-notifications.yml
 │   ├── wb-marketing-notifications.yml
 │   └── xway-limit-notifications.yml
@@ -61,6 +63,7 @@ Secrets are not committed. The active bots use:
 - `PACHCA_CHAT_ID`
 - `PACHCA_CHAT_ID_ACTIONS`
 - `PACHCA_CHAT_ID_MARKETING`
+- `PACHCA_CHAT_ID_REPORT`
 - `PACHCA_TOKEN_XWAY_LIMITS`
 - `PACHCA_CHAT_ID_XWAY_LIMITS`
 - `XWAY_STORAGE_STATE_JSON`

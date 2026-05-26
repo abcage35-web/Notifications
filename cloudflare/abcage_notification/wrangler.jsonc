@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-05-22",
   "triggers": {
-    "crons": ["0 5 * * *", "5 5 * * *", "30 5 * * 1"]
+    "crons": ["0 5 * * *", "5 5 * * *", "30 5 * * 1", "0 6 * * *"]
   },
   "vars": {
     "GITHUB_OWNER": "abcage35-web",
@@ -14,6 +14,7 @@
     "GITHUB_ACTIONS_WORKFLOW_ID": "wb-action-notifications.yml",
     "GITHUB_MARKETING_WORKFLOW_ID": "wb-marketing-notifications.yml",
     "GITHUB_XWAY_LIMIT_WORKFLOW_ID": "xway-limit-notifications.yml",
+    "GITHUB_REPORT_WORKFLOW_ID": "wb-articles-report-notifications.yml",
     "GITHUB_REF": "main"
   }
 }

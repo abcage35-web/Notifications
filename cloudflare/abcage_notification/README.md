@@ -9,6 +9,7 @@ The Worker does not build or send the Pachca report itself. It only calls GitHub
 - actions workflow: `.github/workflows/wb-action-notifications.yml`
 - marketing workflow: `.github/workflows/wb-marketing-notifications.yml`
 - XWAY bidder limit workflow: `.github/workflows/xway-limit-notifications.yml`
+- WB articles report workflow: `.github/workflows/wb-articles-report-notifications.yml`
 - ref: `main`
 
 GitHub Actions then runs the existing Python report sender, which sends the Pachca message, Markdown file and optional thread message.
@@ -23,6 +24,7 @@ Cloudflare cron:
 0 5 * * * - FBO report, 08:00 MSK
 5 5 * * * - actions report, 08:05 MSK
 30 5 * * 1 - XWAY bidder limit report, Monday 08:30 MSK
+0 6 * * * - WB articles report, 09:00 MSK
 ```
 
 ## Secrets
@@ -75,6 +77,15 @@ curl -X POST "$WORKER_URL/dispatch" \
   -d '{"workflow":"actions","chat_id":"39363429","report_run_label":"ручной запуск"}'
 ```
 
+To run the WB articles report:
+
+```bash
+curl -X POST "$WORKER_URL/dispatch" \
+  -H "Authorization: Bearer $DISPATCH_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"workflow":"report","chat_id":"39363429","report_run_label":"ручной запуск"}'
+```
+
 ## Pachca Backup Command
 
 The Worker also exposes:
@@ -90,6 +101,7 @@ Supported command text:
 /действия_уведомление
 /контент_уведомление
 /биддер_уведомление
+/отчет_уведомление
 ```
 
 When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the matching GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.
