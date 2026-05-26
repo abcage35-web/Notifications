@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "wb_marketing_notifications",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-26",
+  "triggers": {
+    "crons": ["0 10 20 * *"]
+  },
+  "vars": {
+    "GITHUB_OWNER": "abcage35-web",
+    "GITHUB_REPO": "Notifications",
+    "GITHUB_WORKFLOW_ID": "wb-marketing-notifications.yml",
+    "GITHUB_REF": "main",
+    "PACHCA_CHAT_ID": "39531378"
+  }
+}

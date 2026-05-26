@@ -1,0 +1,55 @@
+name: WB Marketing Content Notifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      pachca_chat_id:
+        description: "Optional Pachca chat id override for manual/backup runs"
+        required: false
+        default: ""
+        type: string
+      report_run_label:
+        description: "Optional label shown in the Pachca report title"
+        required: false
+        default: "13:00 по МСК"
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: wb-marketing-notifications
+    env:
+      ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
+      PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
+      PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_MARKETING || '39531378' }}
+      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '13:00 по МСК' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: wb-marketing-notifications/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build and send Pachca report
+        run: npm run send
+
+      - name: Upload generated reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-marketing-content-notifications-report
+          path: |
+            wb-marketing-notifications/*.md
+            wb-marketing-notifications/*.json
+          if-no-files-found: ignore

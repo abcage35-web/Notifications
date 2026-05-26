@@ -1,0 +1,14 @@
+{
+  "name": "wb_marketing_notifications",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "wrangler": "^4.94.0"
+  }
+}

@@ -1,0 +1,9 @@
+*.json
+!package.json
+!package-lock.json
+*.log
+*.tmp
+*.md
+!README.md
+!PROJECT_CONTEXT.md
+node_modules/
