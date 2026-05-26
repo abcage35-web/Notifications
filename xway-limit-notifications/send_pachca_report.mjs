@@ -83,6 +83,11 @@ async function sendMessage(token, entityType, entityId, content, files = []) {
   return data.data?.id || data.id;
 }
 
+async function createThread(token, messageId) {
+  const data = await pachcaRequest(token, `/messages/${messageId}/thread`, { method: "POST" });
+  return data.data?.id || data.id;
+}
+
 async function main() {
   const token = requiredEnv("PACHCA_TOKEN");
   const chatId = requiredEnv("PACHCA_CHAT_ID");
@@ -94,7 +99,17 @@ async function main() {
     uploadFile(token, report.files.instruction),
   ]);
   const messageId = await sendMessage(token, "discussion", chatId, report.pachcaMessage, files);
-  console.log(JSON.stringify({ ok: true, messageId, chatId, manifest: report.manifestPath, stats: report.stats }, null, 2));
+  const threadId = await createThread(token, messageId);
+  const descriptionMessageId = await sendMessage(token, "thread", threadId, report.pachcaThreadMessage);
+  console.log(JSON.stringify({
+    ok: true,
+    messageId,
+    threadId,
+    descriptionMessageId,
+    chatId,
+    manifest: report.manifestPath,
+    stats: report.stats,
+  }, null, 2));
 }
 
 main().catch((error) => {

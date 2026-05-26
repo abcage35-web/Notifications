@@ -821,14 +821,17 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
     }
   }
 
-  lines.push(
-    "**Файлы:**",
-    `• \`${path.basename(OUT_LIMITS)}\``,
-    `• \`${path.basename(OUT_ACTIVITY)}\``,
-    `• \`${path.basename(OUT_AUTO)}\``,
-    `• \`${path.basename(OUT_INSTRUCTION)}\``,
-  );
   return lines.join("\n").trim();
+}
+
+function buildPachcaThreadMessage() {
+  return [
+    "**Файлы:**",
+    `• \`${path.basename(OUT_LIMITS)}\`: артикулы с РК, где не установлен лимит расхода или не настроено правило пополнения бюджета.`,
+    `• \`${path.basename(OUT_ACTIVITY)}\`: артикулы с вылетами по лимиту расходов или нехватке бюджета за период отчета.`,
+    `• \`${path.basename(OUT_AUTO)}\`: РК с расходом, где не настроены автоисключения поиска; кластеры и расходы добавлены для проверки.`,
+    `• \`${path.basename(OUT_INSTRUCTION)}\`: правила чтения отчетов, проверки строк и дальнейшие действия.`,
+  ].join("\n");
 }
 
 function writeJson(filePath, payload) {
@@ -877,6 +880,7 @@ export async function buildReports() {
       activityRows: activity.rows,
       autoRows: auto.rows,
     }),
+    pachcaThreadMessage: buildPachcaThreadMessage(),
     stats: {
       totalXwayProducts: base.rows.length,
       xwayListingErrors: base.errors.length,
