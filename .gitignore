@@ -19,3 +19,9 @@ wb-marketing-notifications/Полный контент по Артикулам.m
 wb-marketing-notifications/Настройки Рекомендаций Продавца.md
 wb-marketing-notifications/seller-recommendations-suggestions.json
 wb-marketing-notifications/.wb-basket-cache.json
+
+# XWAY bidder limit reports
+xway-limit-notifications/1. Проблемы: настройка лимитов и бюджетов.md
+xway-limit-notifications/2. Проблемы: вылеты лимитов.md
+xway-limit-notifications/3. Проблемы: Автоисключения Поиска.md
+xway-limit-notifications/xway_limit_reports_*.json

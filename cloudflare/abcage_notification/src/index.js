@@ -26,6 +26,14 @@ const REPORTS = {
     defaultRunLabel: "ручной запуск",
     cron: "",
   },
+  xway_limits: {
+    key: "xway_limits",
+    command: "/биддер_уведомление",
+    workflowEnv: "GITHUB_XWAY_LIMIT_WORKFLOW_ID",
+    defaultWorkflowId: "xway-limit-notifications.yml",
+    defaultRunLabel: "08:30 по МСК",
+    cron: "30 5 * * 1",
+  },
 };
 
 function requireEnv(env, name) {
@@ -143,6 +151,12 @@ function reportByKey(reportKey) {
     content: "marketing",
     marketing: "marketing",
     "wb-marketing-notifications.yml": "marketing",
+    bidder: "xway_limits",
+    bid: "xway_limits",
+    limits: "xway_limits",
+    xway_limits: "xway_limits",
+    xway: "xway_limits",
+    "xway-limit-notifications.yml": "xway_limits",
   };
   return REPORTS[aliases[normalized] || normalized] || REPORTS.fbo;
 }

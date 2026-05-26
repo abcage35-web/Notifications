@@ -1,0 +1,74 @@
+name: XWAY Limit Notifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      pachca_chat_id:
+        description: "Optional Pachca chat id override for manual/backup runs"
+        required: false
+        default: ""
+        type: string
+      report_run_label:
+        description: "Optional label shown in the Pachca report title"
+        required: false
+        default: "08:30 по МСК"
+        type: string
+      report_start:
+        description: "Optional report start date YYYY-MM-DD"
+        required: false
+        default: ""
+        type: string
+      report_end:
+        description: "Optional report end date YYYY-MM-DD"
+        required: false
+        default: ""
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: xway-limit-notifications-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: xway-limit-notifications
+    env:
+      ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
+      XWAY_STORAGE_STATE_JSON: ${{ secrets.XWAY_STORAGE_STATE_JSON }}
+      PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN_XWAY_LIMITS }}
+      PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_XWAY_LIMITS || '39531378' }}
+      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '08:30 по МСК' }}
+      REPORT_START: ${{ inputs.report_start }}
+      REPORT_END: ${{ inputs.report_end }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: xway-limit-notifications/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build and send Pachca report
+        run: npm run send
+
+      - name: Upload generated reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xway-limit-notifications-report
+          path: |
+            xway-limit-notifications/1. Проблемы: настройка лимитов и бюджетов.md
+            xway-limit-notifications/2. Проблемы: вылеты лимитов.md
+            xway-limit-notifications/3. Проблемы: Автоисключения Поиска.md
+            xway-limit-notifications/xway_limit_reports_*.json
+          if-no-files-found: ignore

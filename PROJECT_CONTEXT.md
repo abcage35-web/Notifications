@@ -13,6 +13,7 @@
 | FBO-поставки WB | `wb-fbo-supply-notifications/` | `/фбо_уведомление` | `36815841` через `PACHCA_CHAT_ID` | каждый день 08:00 МСК |
 | Предустановленные действия WB | `wb-action-notifications/` | `/действия_уведомление` | `36815841` через `PACHCA_CHAT_ID_ACTIONS` | каждый день 08:05 МСК |
 | Контент WB | `wb-marketing-notifications/` | `/контент_уведомление` | `39531378` через `PACHCA_CHAT_ID_MARKETING` или Worker var | каждое 20 число в 13:00 МСК |
+| Проблемы биддера XWAY | `xway-limit-notifications/` | `/биддер_уведомление` | `39531378` через `PACHCA_CHAT_ID_XWAY_LIMITS` | каждый понедельник 08:30 МСК |
 
 Тестовый чат для ручных прогонов: `39363429`.
 
@@ -26,7 +27,8 @@
 │   └── workflows/
 │       ├── wb-action-notifications.yml
 │       ├── wb-fbo-supply-notifications.yml
-│       └── wb-marketing-notifications.yml
+│       ├── wb-marketing-notifications.yml
+│       └── xway-limit-notifications.yml
 ├── cloudflare/
 │   ├── abcage_notification/
 │   │   ├── README.md
@@ -62,6 +64,16 @@
 │   └── scripts/
 │       ├── build-products-content-problems-plan-or-fbo-report.mjs
 │       └── build-seller-recommendations-suggestions.mjs
+├── xway-limit-notifications/
+│   ├── PROJECT_CONTEXT.md
+│   ├── README.md
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── send_pachca_report.mjs
+│   ├── lib/
+│   │   └── xway-api.mjs
+│   └── scripts/
+│       └── build-xway-limit-reports.mjs
 ├── .gitignore
 ├── PROJECT_CONTEXT.md
 └── README.md
@@ -81,6 +93,7 @@
 - Для `ВЫКЛЮЧИТЬ РК` добавлено условие `Траты (вчера) >= 1000 руб.`, чтобы не показывать товар, если правка уже успела отработать.
 - Добавлен контент-бот WB с тремя Markdown-файлами и ежемесячным расписанием.
 - Для WB basket `card.json` добавлено ускорение и кеширование определения basket host.
+- Добавлен XWAY-бот `/биддер_уведомление`: еженедельно присылает проблемы лимитов/бюджетов, вылеты лимитов и автоисключения поиска; название, категория и FBO берутся из ABCAGE Analyzer DB.
 
 ## Общая архитектура
 
@@ -120,6 +133,7 @@ Cron triggers из `wrangler.jsonc`:
 ```text
 0 5 * * * - FBO, 08:00 МСК
 5 5 * * * - actions, 08:05 МСК
+30 5 * * 1 - XWAY bidder limits, каждый понедельник 08:30 МСК
 ```
 
 Поддерживаемые команды Пачки:
@@ -128,6 +142,7 @@ Cron triggers из `wrangler.jsonc`:
 /фбо_уведомление
 /действия_уведомление
 /контент_уведомление
+/биддер_уведомление
 ```
 
 Endpoints:
@@ -144,6 +159,7 @@ Endpoints:
 - `GITHUB_FBO_WORKFLOW_ID=wb-fbo-supply-notifications.yml`
 - `GITHUB_ACTIONS_WORKFLOW_ID=wb-action-notifications.yml`
 - `GITHUB_MARKETING_WORKFLOW_ID=wb-marketing-notifications.yml`
+- `GITHUB_XWAY_LIMIT_WORKFLOW_ID=xway-limit-notifications.yml`
 
 Secrets:
 
@@ -239,6 +255,31 @@ wb-marketing-content-notifications-${{ github.ref }}
 ```
 
 Новый запуск отменяет предыдущий незавершенный запуск этого же workflow/ref, чтобы не отправлять дубль контент-отчета.
+
+### `.github/workflows/xway-limit-notifications.yml`
+
+Запускает Node.js 24 в папке `xway-limit-notifications/`.
+
+Секреты:
+
+- `ABCAGE_ANALYZER_TOKEN`
+- `XWAY_STORAGE_STATE_JSON`
+- `PACHCA_TOKEN_XWAY_LIMITS`
+- `PACHCA_CHAT_ID_XWAY_LIMITS`
+
+Команда:
+
+```bash
+npm run send
+```
+
+Есть `concurrency`:
+
+```text
+xway-limit-notifications-${{ github.ref }}
+```
+
+Workflow принимает `pachca_chat_id`, `report_run_label`, `report_start`, `report_end`.
 
 ## Общие источники данных
 
@@ -811,6 +852,9 @@ CSV export
 - `PACHCA_CHAT_ID`
 - `PACHCA_CHAT_ID_ACTIONS`
 - `PACHCA_CHAT_ID_MARKETING`
+- `PACHCA_TOKEN_XWAY_LIMITS`
+- `PACHCA_CHAT_ID_XWAY_LIMITS`
+- `XWAY_STORAGE_STATE_JSON`
 
 Секреты Cloudflare:
 
@@ -854,12 +898,21 @@ npm ci
 node scripts/build-products-content-problems-plan-or-fbo-report.mjs
 ```
 
+XWAY bidder limits:
+
+```bash
+cd xway-limit-notifications
+npm ci
+npm run build
+```
+
 ### Отправка вручную через GitHub Actions
 
 ```bash
 gh workflow run "WB FBO Supply Notifications" --repo abcage35-web/Notifications -f pachca_chat_id=39363429 -f report_run_label="ручной запуск"
 gh workflow run "WB Action Notifications" --repo abcage35-web/Notifications -f pachca_chat_id=39363429 -f report_run_label="ручной запуск"
 gh workflow run "WB Marketing Content Notifications" --repo abcage35-web/Notifications -f pachca_chat_id=39363429 -f report_run_label="ручной запуск"
+gh workflow run "XWAY Limit Notifications" --repo abcage35-web/Notifications -f pachca_chat_id=39363429 -f report_run_label="ручной запуск"
 ```
 
 ### Отправка через Cloudflare `/dispatch`
@@ -883,6 +936,12 @@ curl -X POST "$WORKER_URL/dispatch" \
 {"workflow":"marketing","chat_id":"39363429","report_run_label":"ручной запуск"}
 ```
 
+Для XWAY bidder limits:
+
+```json
+{"workflow":"xway_limits","chat_id":"39363429","report_run_label":"ручной запуск"}
+```
+
 ### Резервный запуск из Пачки
 
 В чате с ботом написать одну из команд:
@@ -891,6 +950,7 @@ curl -X POST "$WORKER_URL/dispatch" \
 /фбо_уведомление
 /действия_уведомление
 /контент_уведомление
+/биддер_уведомление
 ```
 
 Если Пачка требует обращение к боту, допускается:

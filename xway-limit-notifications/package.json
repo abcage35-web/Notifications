@@ -1,0 +1,13 @@
+{
+  "name": "xway-limit-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-xway-limit-reports.mjs",
+    "send": "node send_pachca_report.mjs"
+  },
+  "dependencies": {
+    "mcp-remote": "^0.1.31"
+  }
+}
