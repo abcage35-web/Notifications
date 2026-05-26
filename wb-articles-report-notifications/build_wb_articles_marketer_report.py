@@ -25,6 +25,7 @@ REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
 MIN_CURRENT_FBO = int(os.getenv("REPORT_MIN_CURRENT_FBO", "10"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
+REVENUE_KEY = "finance_revenue"
 MESSAGE_NAME_REPLACEMENTS = {
     "ИП Карпачев": "Паша 1",
     "ИП Сытин": "Стас 1",
@@ -83,6 +84,7 @@ HEADERS = [
     "plan_rub_daily",
     "plan_price",
     "planned_drr",
+    "finance_revenue",
     "margin_rub",
     "margin_percent",
     "orders_prev_day",
@@ -273,6 +275,25 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
               OR COALESCE(s.orders_count, 0) <> 0
               OR COALESCE(s.orders_money, 0) <> 0
               OR COALESCE(s.cart_count, 0) <> 0
+          )
+
+        UNION
+
+        SELECT DISTINCT fin.date AS date_at, fin.account_id, CAST(card.sku AS UNSIGNED) AS sku_num
+        FROM mp.mp_core__realtime_finance fin
+        JOIN mp.wb_core__card card
+          ON card.card_id = fin.card_id
+         AND card.account_id = fin.account_id
+        JOIN current_stock cs
+          ON cs.sku_num = CAST(card.sku AS UNSIGNED)
+         AND cs.account_id = fin.account_id
+        WHERE fin.date BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
+          AND fin.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+          AND (
+              COALESCE(fin.revenue, 0) <> 0
+              OR COALESCE(fin.margin, 0) <> 0
+              OR COALESCE(fin.orders_count, 0) <> 0
+              OR COALESCE(fin.return_count, 0) <> 0
           )
     ),
     key_skus AS (
@@ -492,7 +513,7 @@ def enrich_rows(raw_rows, calculation_from: date, old_ip_by_sku: dict[str, str])
         item["cr3"] = pct(item["buyouts_qty"], item["orders_qty"])
         item["ad_cr1"] = pct(item["ad_baskets"], item["clicks"])
         item["ad_cr2"] = pct(item["ad_orders_qty"], item["ad_baskets"])
-        item["drr"] = pct(item["ad_spend"], item["orders_rub"])
+        item["drr"] = pct(item["ad_spend"], item[REVENUE_KEY])
         item["ad_drr"] = pct(item["ad_spend"], item["ad_orders_rub"])
         item["cpc"] = safe_div(item["ad_spend"], item["clicks"])
         item["cpo"] = safe_div(item["ad_spend"], item["orders_qty"])
@@ -512,12 +533,12 @@ def enrich_rows(raw_rows, calculation_from: date, old_ip_by_sku: dict[str, str])
             item["revenue_delta_pct"] = None
             continue
         prev_orders = prev["orders_qty"]
-        prev_revenue = prev["orders_rub"]
+        prev_revenue = prev[REVENUE_KEY]
         item["orders_prev_day"] = prev_orders
         item["orders_delta"] = item["orders_qty"] - prev_orders
         item["orders_delta_pct"] = pct(item["orders_delta"], prev_orders)
         item["revenue_prev_day"] = prev_revenue
-        item["revenue_delta"] = item["orders_rub"] - prev_revenue
+        item["revenue_delta"] = item[REVENUE_KEY] - prev_revenue
         item["revenue_delta_pct"] = pct(item["revenue_delta"], prev_revenue)
 
     cumulative = defaultdict(lambda: {"qty": Decimal("0"), "rub": Decimal("0")})
@@ -606,6 +627,7 @@ def row_to_markdown(item):
         "plan_rub_daily": fmt_decimal(item["plan_rub_daily"]),
         "plan_price": fmt_decimal(item["plan_price"]),
         "planned_drr": fmt_percent(item["planned_drr"], blank_if_none=False),
+        "finance_revenue": fmt_decimal(item["finance_revenue"]),
         "margin_rub": fmt_decimal(item["margin_rub"]),
         "margin_percent": fmt_percent(item["margin_percent"], blank_if_none=False) if item["finance_revenue"] else "0.00%",
         "orders_prev_day": "" if item["orders_prev_day"] is None else fmt_int(item["orders_prev_day"]),
@@ -657,7 +679,7 @@ def build_markdown(rows, date_from: date, date_to: date, stock_date: date, calcu
     total_impressions = sum((row["impressions"] for row in rows), Decimal("0"))
     total_clicks = sum((row["clicks"] for row in rows), Decimal("0"))
     total_orders = sum((row["orders_qty"] for row in rows), Decimal("0"))
-    total_revenue = sum((row["orders_rub"] for row in rows), Decimal("0"))
+    total_revenue = sum((row[REVENUE_KEY] for row in rows), Decimal("0"))
     total_spend = sum((row["ad_spend"] for row in rows), Decimal("0"))
     total_drr = pct(total_spend, total_revenue)
 
@@ -687,7 +709,7 @@ def build_markdown(rows, date_from: date, date_to: date, stock_date: date, calcu
         f"| Показы РК | {fmt_int(total_impressions)} |",
         f"| Клики РК | {fmt_int(total_clicks)} |",
         f"| Заказы WB | {fmt_int(total_orders)} |",
-        f"| Выручка WB | {fmt_decimal(total_revenue, zero_plain=False)} |",
+        f"| Фин. выручка | {fmt_decimal(total_revenue, zero_plain=False)} |",
         f"| Затраты РК | {fmt_decimal(total_spend, zero_plain=False)} |",
         f"| ДРР общий | {fmt_percent(total_drr)} |",
         "",
@@ -716,10 +738,10 @@ def build_markdown(rows, date_from: date, date_to: date, stock_date: date, calcu
 
 
 def aggregate_metrics(rows, key_fn):
-    grouped = defaultdict(lambda: {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
+    grouped = defaultdict(lambda: {"revenue": Decimal("0"), "ad_spend": Decimal("0")})
     for row in rows:
         key = key_fn(row)
-        grouped[key]["orders_rub"] += row["orders_rub"]
+        grouped[key]["revenue"] += row[REVENUE_KEY]
         grouped[key]["ad_spend"] += row["ad_spend"]
     return grouped
 
@@ -733,17 +755,17 @@ def display_ip_message_name(value):
 
 
 def metric_totals(rows):
-    revenue = sum((row["orders_rub"] for row in rows), Decimal("0"))
+    revenue = sum((row[REVENUE_KEY] for row in rows), Decimal("0"))
     spend = sum((row["ad_spend"] for row in rows), Decimal("0"))
-    return {"orders_rub": revenue, "ad_spend": spend, "drr": pct(spend, revenue)}
+    return {"revenue": revenue, "ad_spend": spend, "drr": pct(spend, revenue)}
 
 
 def metric_values(values):
-    values = values or {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")}
+    values = values or {"revenue": Decimal("0"), "ad_spend": Decimal("0")}
     return {
-        "orders_rub": values.get("orders_rub", Decimal("0")),
+        "revenue": values.get("revenue", Decimal("0")),
         "ad_spend": values.get("ad_spend", Decimal("0")),
-        "drr": pct(values.get("ad_spend", Decimal("0")), values.get("orders_rub", Decimal("0"))),
+        "drr": pct(values.get("ad_spend", Decimal("0")), values.get("revenue", Decimal("0"))),
     }
 
 
@@ -756,7 +778,7 @@ def spend_label(values):
 
 
 def revenue_label(values):
-    return fmt_rub(values.get("orders_rub", Decimal("0")))
+    return fmt_rub(values.get("revenue", Decimal("0")))
 
 
 def append_metric(lines, title, mtd_values, yesterday_values, day_before_values, formatter, emphasize=False):
@@ -869,11 +891,11 @@ def build_message(rows, date_from: date, date_to: date):
 
 
 def build_summary(rows, message_rows, date_from: date, date_to: date, stock_date: date):
-    total_revenue = sum((row["orders_rub"] for row in rows), Decimal("0"))
+    total_revenue = sum((row[REVENUE_KEY] for row in rows), Decimal("0"))
     total_spend = sum((row["ad_spend"] for row in rows), Decimal("0"))
     current_month_from = month_start(date_to)
     current_rows = [row for row in message_rows if current_month_from <= row["date"] <= date_to]
-    current_revenue = sum((row["orders_rub"] for row in current_rows), Decimal("0"))
+    current_revenue = sum((row[REVENUE_KEY] for row in current_rows), Decimal("0"))
     current_spend = sum((row["ad_spend"] for row in current_rows), Decimal("0"))
     return {
         "date_from": date_from.isoformat(),
