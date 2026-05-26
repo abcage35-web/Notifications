@@ -764,12 +764,21 @@ function countByMarketer(rows) {
   return counts;
 }
 
+function marketerTitle(marketer) {
+  return marketer === "—" ? "Без маркетолога" : marketer;
+}
+
 function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
   const byReport = {
-    "настройка лимитов и бюджет": countByMarketer(limitsRows),
-    "вылеты лимитов": countByMarketer(activityRows),
-    "автоисключения поиска": countByMarketer(autoRows),
+    "Настройка лимитов и бюджетов": countByMarketer(limitsRows),
+    "Вылеты лимитов": countByMarketer(activityRows),
+    "Автоисключения поиска": countByMarketer(autoRows),
   };
+  const reportTotals = [
+    ["Настройка лимитов и бюджетов", limitsRows.length],
+    ["Вылеты лимитов", activityRows.length],
+    ["Автоисключения поиска", autoRows.length],
+  ];
   const marketers = [
     ...new Set(Object.values(byReport).flatMap((map) => [...map.keys()])),
   ].sort((left, right) => {
@@ -779,27 +788,43 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
   });
 
   const lines = [
-    `ПРОБЛЕМЫ БИДДЕРА XWAY (отчет ${process.env.REPORT_RUN_LABEL || "ручной запуск"})`,
+    "**Проблемы биддера XWAY**",
     "",
-    `Период: ${period.start} - ${period.end}`,
-    `Сформировано: ${formatMskDateTime()} МСК`,
+    `_Отчет: ${process.env.REPORT_RUN_LABEL || "ручной запуск"}_`,
+    `_Период: ${period.start} - ${period.end}_`,
+    `_Сформировано: ${formatMskDateTime()} МСК_`,
+    `_Фильтр: FBO-остаток из БД Акинатора > ${FBO_THRESHOLD}; XWAY CPM РК в ACTIVE/PAUSED._`,
     "",
+    "**Сводка:**",
+    `• Всего проблемных строк: ${limitsRows.length + activityRows.length + autoRows.length}`,
+    ...reportTotals.map(([label, count]) => `• ${label}: ${count}`),
+    "",
+    "**Сводка по маркетологам / отчетам / ошибкам:**",
   ];
 
   if (!marketers.length) {
-    lines.push("Проблем не найдено.");
+    lines.push("• Проблем не найдено.");
   } else {
     for (const marketer of marketers) {
-      lines.push(marketer);
+      lines.push(`**${marketerTitle(marketer)}**`);
       for (const [label, counts] of Object.entries(byReport)) {
         const count = counts.get(marketer) || 0;
-        if (count) lines.push(`- ${label}: ${count}`);
+        if (count) {
+          lines.push(`• **${label}**`);
+          lines.push(`•• Проблемных строк: ${count}`);
+        }
       }
       lines.push("");
     }
   }
 
-  lines.push("Файлы приложены к сообщению.");
+  lines.push(
+    "**Файлы:**",
+    `• \`${path.basename(OUT_LIMITS)}\``,
+    `• \`${path.basename(OUT_ACTIVITY)}\``,
+    `• \`${path.basename(OUT_AUTO)}\``,
+    `• \`${path.basename(OUT_INSTRUCTION)}\``,
+  );
   return lines.join("\n").trim();
 }
 
