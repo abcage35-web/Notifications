@@ -14,7 +14,7 @@
 | Предустановленные действия WB | `wb-action-notifications/` | `/действия_уведомление` | `36815841` через `PACHCA_CHAT_ID_ACTIONS` | каждый день 08:05 МСК |
 | Контент WB | `wb-marketing-notifications/` | `/контент_уведомление` | `39531378` через `PACHCA_CHAT_ID_MARKETING` или Worker var | каждое 20 число в 13:00 МСК |
 | Проблемы биддера XWAY | `xway-limit-notifications/` | `/биддер_уведомление` | `39531378` через `PACHCA_CHAT_ID_XWAY_LIMITS` | каждый понедельник 08:30 МСК |
-| Артикулярный отчет WB | `wb-articles-report-notifications/` | `/отчет_уведомление` | `39531378` через `PACHCA_CHAT_ID_REPORT` или fallback workflow | каждый день 09:00 МСК |
+| Артикулярный отчет WB | `wb-articles-report-notifications/` | `/отчет_уведомление` | `39531378` через `PACHCA_CHAT_ID_REPORT` или fallback workflow | каждый день 09:00 МСК через GitHub Actions schedule |
 
 Тестовый чат для ручных прогонов: `39363429`.
 
@@ -143,8 +143,9 @@ Cron triggers из `wrangler.jsonc`:
 0 5 * * * - FBO, 08:00 МСК
 5 5 * * * - actions, 08:05 МСК
 30 5 * * 1 - XWAY bidder limits, каждый понедельник 08:30 МСК
-0 6 * * * - артикулярный отчет WB, 09:00 МСК
 ```
+
+Артикулярный отчет WB запускается по расписанию через GitHub Actions `schedule` (`0 6 * * *`), чтобы не увеличивать число Cloudflare cron-триггеров сверх лимита аккаунта. Worker поддерживает для него ручную команду `/отчет_уведомление`.
 
 Поддерживаемые команды Пачки:
 

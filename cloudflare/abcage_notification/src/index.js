@@ -40,7 +40,7 @@ const REPORTS = {
     workflowEnv: "GITHUB_REPORT_WORKFLOW_ID",
     defaultWorkflowId: "wb-articles-report-notifications.yml",
     defaultRunLabel: "09:00 по МСК",
-    cron: "0 6 * * *",
+    cron: "",
   },
 };
 
