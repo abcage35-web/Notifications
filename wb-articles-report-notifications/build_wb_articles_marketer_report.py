@@ -762,8 +762,9 @@ def revenue_label(values):
 def append_metric(lines, title, mtd_values, yesterday_values, day_before_values, formatter, emphasize=False):
     value = formatter(mtd_values)
     formatted_value = f"**`{value}`**" if emphasize else f"`{value}`"
-    lines.append(f"{title}: {formatted_value}")
-    lines.append(f"  ◦ вчера < позавчера: `{formatter(yesterday_values)}` < `{formatter(day_before_values)}`")
+    lines.append(f"• {title}: {formatted_value}")
+    lines.append(f"  ◦ вчера: `{formatter(yesterday_values)}`")
+    lines.append(f"  ◦ позавчера: `{formatter(day_before_values)}`")
 
 
 def build_message(rows, date_from: date, date_to: date):
@@ -804,10 +805,10 @@ def build_message(rows, date_from: date, date_to: date):
         key=lambda item: (IP_MESSAGE_ORDER.get(item[0], 100), display_ip_message_name(item[0])),
     ):
         lines.append("")
-        lines.append(f"• **{display_ip_message_name(ip)}**")
+        lines.append(f"**{display_ip_message_name(ip)}**")
         append_metric(
             lines,
-            "  ДРР",
+            "ДРР",
             metric_values(values),
             metric_values(ip_yesterday.get(ip)),
             metric_values(ip_day_before.get(ip)),
@@ -816,7 +817,7 @@ def build_message(rows, date_from: date, date_to: date):
         )
         append_metric(
             lines,
-            "  Траты РК",
+            "Траты РК",
             metric_values(values),
             metric_values(ip_yesterday.get(ip)),
             metric_values(ip_day_before.get(ip)),
@@ -824,7 +825,7 @@ def build_message(rows, date_from: date, date_to: date):
         )
         append_metric(
             lines,
-            "  Выручка",
+            "Выручка",
             metric_values(values),
             metric_values(ip_yesterday.get(ip)),
             metric_values(ip_day_before.get(ip)),
@@ -838,10 +839,10 @@ def build_message(rows, date_from: date, date_to: date):
         key=lambda item: (CABINET_MESSAGE_ORDER.get(item[0], 100), display_message_name(item[0])),
     ):
         lines.append("")
-        lines.append(f"• **{display_message_name(cabinet)}**")
+        lines.append(f"**{display_message_name(cabinet)}**")
         append_metric(
             lines,
-            "  ДРР",
+            "ДРР",
             metric_values(values),
             metric_values(cabinet_yesterday.get(cabinet)),
             metric_values(cabinet_day_before.get(cabinet)),
@@ -850,7 +851,7 @@ def build_message(rows, date_from: date, date_to: date):
         )
         append_metric(
             lines,
-            "  Траты РК",
+            "Траты РК",
             metric_values(values),
             metric_values(cabinet_yesterday.get(cabinet)),
             metric_values(cabinet_day_before.get(cabinet)),
@@ -858,7 +859,7 @@ def build_message(rows, date_from: date, date_to: date):
         )
         append_metric(
             lines,
-            "  Выручка",
+            "Выручка",
             metric_values(values),
             metric_values(cabinet_yesterday.get(cabinet)),
             metric_values(cabinet_day_before.get(cabinet)),
