@@ -15,7 +15,7 @@ Daily WB article-level marketer report for Pachca.
 - `REPORT_TZ` controls date calculation, default is `Europe/Moscow`.
 - `REPORT_RUN_LABEL` is shown in the message title, default is `09:00 по МСК`.
 - `REPORT_WINDOW_DAYS` controls the output window, default is `30`.
-- `REPORT_MIN_CURRENT_FBO` controls the current stock filter, default is `10`.
+- Rows are included only when there is finance revenue or RK spend. FBO is shown as a reference column, not as a filter.
 
 Generated report files are ignored by git.
 

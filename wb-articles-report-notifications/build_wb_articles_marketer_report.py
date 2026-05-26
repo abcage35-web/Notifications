@@ -23,7 +23,6 @@ from custom_wb_fbo_supplies import McpSql  # noqa: E402
 REPORT_TZ = ZoneInfo(os.getenv("REPORT_TZ", "Europe/Moscow"))
 REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
-MIN_CURRENT_FBO = int(os.getenv("REPORT_MIN_CURRENT_FBO", "10"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
 REVENUE_KEY = "finance_revenue"
 MESSAGE_NAME_REPLACEMENTS = {
@@ -230,7 +229,7 @@ def load_old_ip_by_sku(path_text: str) -> dict[str, str]:
     return mapping
 
 
-def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, min_current_fbo: int):
+def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
     plan_from = month_start(query_from)
     plan_to = month_start(date_to)
     sql = f"""
@@ -243,39 +242,12 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
           AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
           AND stock.sku REGEXP '^[0-9]+$'
         GROUP BY sku_num, stock.account_id
-        HAVING current_stock >= {int(min_current_fbo)}
     ),
     daily_keys AS (
-        SELECT DISTINCT f.date_at, f.account_id, CAST(f.sku AS UNSIGNED) AS sku_num
-        FROM mp.wb_core__funnel f
-        JOIN current_stock cs
-          ON cs.sku_num = CAST(f.sku AS UNSIGNED)
-         AND cs.account_id = f.account_id
-        WHERE f.date_at BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
-          AND (
-              COALESCE(f.open_card_count, 0) <> 0
-              OR COALESCE(f.add_to_cart_count, 0) <> 0
-              OR COALESCE(f.orders_count, 0) <> 0
-              OR COALESCE(f.orders_sum, 0) <> 0
-              OR COALESCE(f.buyouts_count, 0) <> 0
-          )
-
-        UNION
-
         SELECT DISTINCT s.date_at, s.account_id, CAST(s.sku AS UNSIGNED) AS sku_num
         FROM mp.wb_core__campaign_stat_daily_sku s
-        JOIN current_stock cs
-          ON cs.sku_num = CAST(s.sku AS UNSIGNED)
-         AND cs.account_id = s.account_id
         WHERE s.date_at BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
-          AND (
-              COALESCE(s.impressions, 0) <> 0
-              OR COALESCE(s.clicks, 0) <> 0
-              OR COALESCE(s.consumptions, 0) <> 0
-              OR COALESCE(s.orders_count, 0) <> 0
-              OR COALESCE(s.orders_money, 0) <> 0
-              OR COALESCE(s.cart_count, 0) <> 0
-          )
+          AND COALESCE(s.consumptions, 0) <> 0
 
         UNION
 
@@ -284,17 +256,9 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
         JOIN mp.wb_core__card card
           ON card.card_id = fin.card_id
          AND card.account_id = fin.account_id
-        JOIN current_stock cs
-          ON cs.sku_num = CAST(card.sku AS UNSIGNED)
-         AND cs.account_id = fin.account_id
         WHERE fin.date BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
           AND fin.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
-          AND (
-              COALESCE(fin.revenue, 0) <> 0
-              OR COALESCE(fin.margin, 0) <> 0
-              OR COALESCE(fin.orders_count, 0) <> 0
-              OR COALESCE(fin.return_count, 0) <> 0
-          )
+          AND COALESCE(fin.revenue, 0) <> 0
     ),
     key_skus AS (
         SELECT DISTINCT account_id, sku_num
@@ -397,7 +361,7 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
            account.account_name_alias AS cabinet,
            account.name AS account_name,
            CAST(k.sku_num AS CHAR) AS sku,
-           cs.current_stock,
+           COALESCE(cs.current_stock, 0) AS current_stock,
            COALESCE(ci.product_name, ca.crm_name, '-') AS product_name,
            COALESCE(ci.category, ca.subject_name, '-') AS category,
            ca.legal_entity_name,
@@ -420,7 +384,7 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
            COALESCE(fin.finance_revenue, 0) AS finance_revenue,
            COALESCE(fin.finance_margin, 0) AS finance_margin
     FROM daily_keys k
-    JOIN current_stock cs
+    LEFT JOIN current_stock cs
       ON cs.sku_num = k.sku_num
      AND cs.account_id = k.account_id
     LEFT JOIN funnel f
@@ -446,6 +410,8 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date, mi
       ON ca.sku_num = k.sku_num
     LEFT JOIN mp.accounts account
       ON account.id = k.account_id
+    WHERE COALESCE(fin.finance_revenue, 0) <> 0
+       OR COALESCE(a.ad_spend, 0) <> 0
     ORDER BY k.date_at, cabinet, category, k.sku_num;
     """
     return db.query(sql)
@@ -706,7 +672,7 @@ def build_markdown(rows, date_from: date, date_to: date, stock_date: date, calcu
         "",
         f"Период: **{date_from.isoformat()} - {date_to.isoformat()}**",
         "Гранулярность: **date + cabinet + sku**",
-        f"Фильтр: текущий `FBO >= {MIN_CURRENT_FBO}` и есть ненулевая активность в воронке или РК.",
+        "Фильтр: есть фин. выручка или траты РК; FBO используется только как справочная колонка.",
         f"Срез FBO: **{stock_date.isoformat()}**.",
         f"Расчет MTD-метрик: **с {calculation_from.isoformat()}**, с обнулением на границе месяца.",
         "",
@@ -952,7 +918,7 @@ def main():
     db = McpSql()
     try:
         stock_date = resolve_stock_date(db, requested_stock_date)
-        raw_rows = query_rows(db, calculation_from, date_to, stock_date, MIN_CURRENT_FBO)
+        raw_rows = query_rows(db, calculation_from, date_to, stock_date)
     finally:
         db.close()
 
