@@ -787,11 +787,6 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
     "Вылеты лимитов": countByMarketer(activityRows),
     "Автоисключения поиска": countByMarketer(autoRows),
   };
-  const reportTotals = [
-    ["Настройка лимитов и бюджетов", limitsRows.length],
-    ["Вылеты лимитов", activityRows.length],
-    ["Автоисключения поиска", autoRows.length],
-  ];
   const marketers = [
     ...new Set(Object.values(byReport).flatMap((map) => [...map.keys()])),
   ].sort((left, right) => {
@@ -808,10 +803,6 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
     `_Сформировано: ${formatMskDateTime()} МСК_`,
     `_Фильтр: FBO-остаток из БД Акинатора > ${FBO_THRESHOLD}; XWAY CPM РК в ACTIVE/PAUSED._`,
     "",
-    "**Сводка:**",
-    `• Всего проблемных строк: ${limitsRows.length + activityRows.length + autoRows.length}`,
-    ...reportTotals.map(([label, count]) => `• ${label}: ${count}`),
-    "",
     "**Сводка по маркетологам / отчетам / ошибкам:**",
   ];
 
@@ -823,8 +814,7 @@ function buildPachcaMessage({ period, limitsRows, activityRows, autoRows }) {
       for (const [label, counts] of Object.entries(byReport)) {
         const count = counts.get(marketer) || 0;
         if (count) {
-          lines.push(`• **${label}**`);
-          lines.push(`•• Проблемных строк: ${count}`);
+          lines.push(`• ${label}: **${count}**`);
         }
       }
       lines.push("");
