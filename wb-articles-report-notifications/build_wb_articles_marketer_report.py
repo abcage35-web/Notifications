@@ -25,6 +25,10 @@ REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
 MIN_CURRENT_FBO = int(os.getenv("REPORT_MIN_CURRENT_FBO", "10"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
+MESSAGE_NAME_REPLACEMENTS = {
+    "ИП Карпачев": "Паша 1",
+    "ИП Сытин": "Стас 1",
+}
 
 HEADERS = [
     "date",
@@ -706,16 +710,52 @@ def aggregate_drr(rows):
     return grouped
 
 
+def display_message_name(value):
+    return MESSAGE_NAME_REPLACEMENTS.get(str(value), str(value))
+
+
+def metric_totals(rows):
+    revenue = sum((row["orders_rub"] for row in rows), Decimal("0"))
+    spend = sum((row["ad_spend"] for row in rows), Decimal("0"))
+    return {"orders_rub": revenue, "ad_spend": spend, "drr": pct(spend, revenue)}
+
+
+def drr_label(values):
+    return fmt_percent(values.get("drr"), blank_if_none=False)
+
+
+def spend_label(values):
+    return fmt_rub(values.get("ad_spend", Decimal("0")))
+
+
+def revenue_label(values):
+    return fmt_rub(values.get("orders_rub", Decimal("0")))
+
+
+def append_metric(lines, title, mtd_values, yesterday_values, day_before_values, formatter, emphasize=False):
+    value = formatter(mtd_values)
+    formatted_value = f"**`{value}`**" if emphasize else f"`{value}`"
+    lines.append(f"{title}: {formatted_value}")
+    lines.append(f"  ◦ вчера: `{formatter(yesterday_values)}`")
+    lines.append(f"  ◦ позавчера: `{formatter(day_before_values)}`")
+
+
 def build_message(rows, date_from: date, date_to: date):
     current_month_from = month_start(date_to)
     current_rows = [row for row in rows if current_month_from <= row["date"] <= date_to]
-    total_revenue = sum((row["orders_rub"] for row in current_rows), Decimal("0"))
-    total_spend = sum((row["ad_spend"] for row in current_rows), Decimal("0"))
-    total_drr = pct(total_spend, total_revenue)
-    grouped = aggregate_drr(current_rows)
+    yesterday = date_to
+    day_before = date_to - timedelta(days=1)
+    yesterday_rows = [row for row in rows if row["date"] == yesterday]
+    day_before_rows = [row for row in rows if row["date"] == day_before]
+    total_mtd = metric_totals(current_rows)
+    total_yesterday = metric_totals(yesterday_rows)
+    total_day_before = metric_totals(day_before_rows)
+    grouped_mtd = aggregate_drr(current_rows)
+    grouped_yesterday = aggregate_drr(yesterday_rows)
+    grouped_day_before = aggregate_drr(day_before_rows)
     output_days = (date_to - date_from).days + 1
     by_ip = defaultdict(list)
-    for (ip, cabinet), values in sorted(grouped.items(), key=lambda item: (item[0][0], item[0][1])):
+    for (ip, cabinet), values in sorted(grouped_mtd.items(), key=lambda item: (item[0][0], item[0][1])):
         by_ip[ip].append((cabinet, values))
 
     lines = [
@@ -726,22 +766,32 @@ def build_message(rows, date_from: date, date_to: date):
         f"**ДРР с начала месяца:** {fmt_date(current_month_from)} - {fmt_date(date_to)}",
         "",
         "**WB общий**",
-        f"ДРР: **{fmt_percent(total_drr, blank_if_none=False)}**",
-        f"Траты РК: `{fmt_rub(total_spend)}`",
-        f"Выручка WB: `{fmt_rub(total_revenue)}`",
+    ]
+    append_metric(lines, "ДРР", total_mtd, total_yesterday, total_day_before, drr_label, emphasize=True)
+    append_metric(lines, "Траты РК", total_mtd, total_yesterday, total_day_before, spend_label)
+    append_metric(lines, "Выручка", total_mtd, total_yesterday, total_day_before, revenue_label)
+    lines.extend(
+        [
         "",
         "**ДРР MTD по IP / кабинетам**",
-    ]
+        ]
+    )
     if not by_ip:
         lines.append("Нет данных за текущий месяц.")
     for ip, cabinets in by_ip.items():
         lines.append("")
-        lines.append(f"**{ip}**")
+        lines.append(f"**{display_message_name(ip)}**")
         for cabinet, values in cabinets:
-            revenue = values["orders_rub"]
-            spend = values["ad_spend"]
-            lines.append(f"• {cabinet}: ДРР **{fmt_percent(pct(spend, revenue), blank_if_none=False)}**")
-            lines.append(f"  РК `{fmt_rub(spend)}` / WB `{fmt_rub(revenue)}`")
+            key = (ip, cabinet)
+            yesterday_values = grouped_yesterday.get(key, {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
+            yesterday_values["drr"] = pct(yesterday_values["ad_spend"], yesterday_values["orders_rub"])
+            day_before_values = grouped_day_before.get(key, {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
+            day_before_values["drr"] = pct(day_before_values["ad_spend"], day_before_values["orders_rub"])
+            values["drr"] = pct(values["ad_spend"], values["orders_rub"])
+            lines.append(f"• **{display_message_name(cabinet)}**")
+            append_metric(lines, "  ДРР", values, yesterday_values, day_before_values, drr_label, emphasize=True)
+            append_metric(lines, "  Траты РК", values, yesterday_values, day_before_values, spend_label)
+            append_metric(lines, "  Выручка", values, yesterday_values, day_before_values, revenue_label)
     lines.extend(["", "_Markdown-файл с таблицами приложен к сообщению._"])
     return "\n".join(lines)
 
