@@ -21,6 +21,17 @@ const DESIGNS_CSV_URL =
   "https://docs.google.com/spreadsheets/d/1SNvaHyFSHy9I1rT24dDYsbGEIid5lndcdHEMhTXLjG4/export?format=csv&gid=373432525";
 const BASKET_START = 1;
 const BASKET_END = 120;
+const BASKET_VOL_RANGES = [
+  [143, "01"], [287, "02"], [431, "03"], [719, "04"], [1007, "05"],
+  [1061, "06"], [1115, "07"], [1169, "08"], [1313, "09"], [1601, "10"],
+  [1655, "11"], [1919, "12"], [2045, "13"], [2189, "14"], [2405, "15"],
+  [2621, "16"], [2837, "17"], [3053, "18"], [3269, "19"], [3485, "20"],
+  [3701, "21"], [3917, "22"], [4133, "23"], [4349, "24"], [4565, "25"],
+  [4871, "26"], [5183, "27"], [5439, "28"], [5747, "29"], [6053, "30"],
+  [6359, "31"], [6720, "32"], [7023, "33"], [7305, "34"], [7681, "35"],
+  [8111, "36"], [8349, "37"], [8669, "38"], [9134, "39"], [9430, "40"],
+  [9999, "41"],
+];
 
 function executablePath(command) {
   for (const dir of String(process.env.PATH || "").split(path.delimiter)) {
@@ -349,7 +360,7 @@ async function loadBaseArticlesFromMysql() {
   }
 }
 
-async function fetchWithTimeout(url, timeoutMs = 7_000) {
+async function fetchWithTimeout(url, timeoutMs = 2_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -360,6 +371,26 @@ async function fetchWithTimeout(url, timeoutMs = 7_000) {
 }
 
 const basketHostByVol = new Map();
+
+function basketSuffixForVol(vol) {
+  return BASKET_VOL_RANGES.find(([maxVol]) => vol <= maxVol)?.[1] || "";
+}
+
+function candidateBasketSuffixes(vol) {
+  const suffixes = [];
+  const add = (value) => {
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < BASKET_START || num > BASKET_END) return;
+    const suffix = String(num).padStart(2, "0");
+    if (!suffixes.includes(suffix)) suffixes.push(suffix);
+  };
+
+  add(basketHostByVol.get(String(vol)));
+  add(basketSuffixForVol(vol));
+  for (const delta of [-1, 1, -2, 2]) add(Number(basketSuffixForVol(vol)) + delta);
+  for (let host = BASKET_START; host <= BASKET_END; host += 1) add(host);
+  return suffixes;
+}
 
 async function loadCardJson(article) {
   const nmId = Number(article);
@@ -379,15 +410,7 @@ async function loadCardJson(article) {
     }
   };
 
-  const cached = basketHostByVol.get(String(vol));
-  if (cached) {
-    const card = await tryHost(cached);
-    if (card) return card;
-    basketHostByVol.delete(String(vol));
-  }
-
-  for (let host = BASKET_START; host <= BASKET_END; host += 1) {
-    const suffix = String(host).padStart(2, "0");
+  for (const suffix of candidateBasketSuffixes(vol)) {
     const card = await tryHost(suffix);
     if (card) {
       basketHostByVol.set(String(vol), suffix);
