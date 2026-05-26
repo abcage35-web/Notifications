@@ -13,6 +13,8 @@ const OUT_RECOMMENDATIONS_MD = path.join(ROOT, "Настройки Рекоме�
 const SELLER_RECOMMENDATIONS_SCRIPT = path.join(ROOT, "scripts", "build-seller-recommendations-suggestions.mjs");
 const SELLER_RECOMMENDATIONS_JSON = path.join(ROOT, "seller-recommendations-suggestions.json");
 const BASKET_CACHE_PATH = path.join(ROOT, ".wb-basket-cache.json");
+const INCOMPLETE_CONTENT_REPORT_TITLE = "Незаполненный контент по Артикулам";
+const INCOMPLETE_CONTENT_MESSAGE_TITLE = `${INCOMPLETE_CONTENT_REPORT_TITLE} (Ежемесячный / 20 число месяца)`;
 const REPORT_TZ = "Asia/Tbilisi";
 const GENERATED_AT_TZ = "Europe/Moscow";
 const ANALYZER_URL = "https://mcp.mpvibe.ru/mcp/analyzer";
@@ -689,7 +691,7 @@ function buildPachcaMessage({ tableRows, generatedAt, stockDate, planMonth }) {
   );
 
   const lines = [
-    "**Незаполненный контент по Артикулам**",
+    `**${INCOMPLETE_CONTENT_MESSAGE_TITLE}**`,
     "",
     `_Сформировано: ${generatedAtText}_`,
     `_Фильтр: план продаж за ${planMonth.slice(0, 7)} > 10 или FBO > 10 на ${stockDate}._`,
@@ -868,7 +870,7 @@ function buildMarkdown({
   ];
 
   const markdownLines = [
-    "# Незаполненный контент по Артикулам",
+    `# ${INCOMPLETE_CONTENT_REPORT_TITLE}`,
     "",
     "> **Сформировано:** " + generatedAtText,
     "",
