@@ -29,6 +29,20 @@ MESSAGE_NAME_REPLACEMENTS = {
     "ИП Карпачев": "Паша 1",
     "ИП Сытин": "Стас 1",
 }
+IP_MESSAGE_NAME_REPLACEMENTS = {
+    "ИП Карпачев": "Паша 1 + Паша 2",
+    "ИП Сытин": "Стас 1 + Стас 2",
+}
+IP_MESSAGE_ORDER = {
+    "ИП Сытин": 0,
+    "ИП Карпачев": 1,
+}
+CABINET_MESSAGE_ORDER = {
+    "ИП Сытин": 0,
+    "Стас 2": 1,
+    "ИП Карпачев": 2,
+    "Паша 2": 3,
+}
 
 HEADERS = [
     "date",
@@ -701,10 +715,10 @@ def build_markdown(rows, date_from: date, date_to: date, stock_date: date, calcu
     return "\n".join(lines)
 
 
-def aggregate_drr(rows):
+def aggregate_metrics(rows, key_fn):
     grouped = defaultdict(lambda: {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
     for row in rows:
-        key = (row["ip"], row["cabinet"])
+        key = key_fn(row)
         grouped[key]["orders_rub"] += row["orders_rub"]
         grouped[key]["ad_spend"] += row["ad_spend"]
     return grouped
@@ -714,10 +728,23 @@ def display_message_name(value):
     return MESSAGE_NAME_REPLACEMENTS.get(str(value), str(value))
 
 
+def display_ip_message_name(value):
+    return IP_MESSAGE_NAME_REPLACEMENTS.get(str(value), display_message_name(value))
+
+
 def metric_totals(rows):
     revenue = sum((row["orders_rub"] for row in rows), Decimal("0"))
     spend = sum((row["ad_spend"] for row in rows), Decimal("0"))
     return {"orders_rub": revenue, "ad_spend": spend, "drr": pct(spend, revenue)}
+
+
+def metric_values(values):
+    values = values or {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")}
+    return {
+        "orders_rub": values.get("orders_rub", Decimal("0")),
+        "ad_spend": values.get("ad_spend", Decimal("0")),
+        "drr": pct(values.get("ad_spend", Decimal("0")), values.get("orders_rub", Decimal("0"))),
+    }
 
 
 def drr_label(values):
@@ -736,8 +763,7 @@ def append_metric(lines, title, mtd_values, yesterday_values, day_before_values,
     value = formatter(mtd_values)
     formatted_value = f"**`{value}`**" if emphasize else f"`{value}`"
     lines.append(f"{title}: {formatted_value}")
-    lines.append(f"  ◦ вчера: `{formatter(yesterday_values)}`")
-    lines.append(f"  ◦ позавчера: `{formatter(day_before_values)}`")
+    lines.append(f"  ◦ вчера < позавчера: `{formatter(yesterday_values)}` < `{formatter(day_before_values)}`")
 
 
 def build_message(rows, date_from: date, date_to: date):
@@ -750,13 +776,13 @@ def build_message(rows, date_from: date, date_to: date):
     total_mtd = metric_totals(current_rows)
     total_yesterday = metric_totals(yesterday_rows)
     total_day_before = metric_totals(day_before_rows)
-    grouped_mtd = aggregate_drr(current_rows)
-    grouped_yesterday = aggregate_drr(yesterday_rows)
-    grouped_day_before = aggregate_drr(day_before_rows)
+    ip_mtd = aggregate_metrics(current_rows, lambda row: row["ip"])
+    ip_yesterday = aggregate_metrics(yesterday_rows, lambda row: row["ip"])
+    ip_day_before = aggregate_metrics(day_before_rows, lambda row: row["ip"])
+    cabinet_mtd = aggregate_metrics(current_rows, lambda row: row["cabinet"])
+    cabinet_yesterday = aggregate_metrics(yesterday_rows, lambda row: row["cabinet"])
+    cabinet_day_before = aggregate_metrics(day_before_rows, lambda row: row["cabinet"])
     output_days = (date_to - date_from).days + 1
-    by_ip = defaultdict(list)
-    for (ip, cabinet), values in sorted(grouped_mtd.items(), key=lambda item: (item[0][0], item[0][1])):
-        by_ip[ip].append((cabinet, values))
 
     lines = [
         "**WB: отчет для сводки маркетолога**",
@@ -770,28 +796,74 @@ def build_message(rows, date_from: date, date_to: date):
     append_metric(lines, "ДРР", total_mtd, total_yesterday, total_day_before, drr_label, emphasize=True)
     append_metric(lines, "Траты РК", total_mtd, total_yesterday, total_day_before, spend_label)
     append_metric(lines, "Выручка", total_mtd, total_yesterday, total_day_before, revenue_label)
-    lines.extend(
-        [
-        "",
-        "**ДРР MTD по IP / кабинетам**",
-        ]
-    )
-    if not by_ip:
+    lines.extend(["", "**ДРР MTD по ИП**"])
+    if not ip_mtd:
         lines.append("Нет данных за текущий месяц.")
-    for ip, cabinets in by_ip.items():
+    for ip, values in sorted(
+        ip_mtd.items(),
+        key=lambda item: (IP_MESSAGE_ORDER.get(item[0], 100), display_ip_message_name(item[0])),
+    ):
         lines.append("")
-        lines.append(f"**{display_message_name(ip)}**")
-        for cabinet, values in cabinets:
-            key = (ip, cabinet)
-            yesterday_values = grouped_yesterday.get(key, {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
-            yesterday_values["drr"] = pct(yesterday_values["ad_spend"], yesterday_values["orders_rub"])
-            day_before_values = grouped_day_before.get(key, {"orders_rub": Decimal("0"), "ad_spend": Decimal("0")})
-            day_before_values["drr"] = pct(day_before_values["ad_spend"], day_before_values["orders_rub"])
-            values["drr"] = pct(values["ad_spend"], values["orders_rub"])
-            lines.append(f"• **{display_message_name(cabinet)}**")
-            append_metric(lines, "  ДРР", values, yesterday_values, day_before_values, drr_label, emphasize=True)
-            append_metric(lines, "  Траты РК", values, yesterday_values, day_before_values, spend_label)
-            append_metric(lines, "  Выручка", values, yesterday_values, day_before_values, revenue_label)
+        lines.append(f"• **{display_ip_message_name(ip)}**")
+        append_metric(
+            lines,
+            "  ДРР",
+            metric_values(values),
+            metric_values(ip_yesterday.get(ip)),
+            metric_values(ip_day_before.get(ip)),
+            drr_label,
+            emphasize=True,
+        )
+        append_metric(
+            lines,
+            "  Траты РК",
+            metric_values(values),
+            metric_values(ip_yesterday.get(ip)),
+            metric_values(ip_day_before.get(ip)),
+            spend_label,
+        )
+        append_metric(
+            lines,
+            "  Выручка",
+            metric_values(values),
+            metric_values(ip_yesterday.get(ip)),
+            metric_values(ip_day_before.get(ip)),
+            revenue_label,
+        )
+    lines.extend(["", "**ДРР MTD по кабинетам**"])
+    if not cabinet_mtd:
+        lines.append("Нет данных за текущий месяц.")
+    for cabinet, values in sorted(
+        cabinet_mtd.items(),
+        key=lambda item: (CABINET_MESSAGE_ORDER.get(item[0], 100), display_message_name(item[0])),
+    ):
+        lines.append("")
+        lines.append(f"• **{display_message_name(cabinet)}**")
+        append_metric(
+            lines,
+            "  ДРР",
+            metric_values(values),
+            metric_values(cabinet_yesterday.get(cabinet)),
+            metric_values(cabinet_day_before.get(cabinet)),
+            drr_label,
+            emphasize=True,
+        )
+        append_metric(
+            lines,
+            "  Траты РК",
+            metric_values(values),
+            metric_values(cabinet_yesterday.get(cabinet)),
+            metric_values(cabinet_day_before.get(cabinet)),
+            spend_label,
+        )
+        append_metric(
+            lines,
+            "  Выручка",
+            metric_values(values),
+            metric_values(cabinet_yesterday.get(cabinet)),
+            metric_values(cabinet_day_before.get(cabinet)),
+            revenue_label,
+        )
     lines.extend(["", "_Markdown-файл с таблицами приложен к сообщению._"])
     return "\n".join(lines)
 
