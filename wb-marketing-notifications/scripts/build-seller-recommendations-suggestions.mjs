@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_MD = path.join(ROOT, "Настройки Рекомендаций Продавца.md");
 const OUT_JSON = path.join(ROOT, "seller-recommendations-suggestions.json");
+const BASKET_CACHE_PATH = path.join(ROOT, ".wb-basket-cache.json");
 const REPORT_TZ = "Asia/Tbilisi";
 const GENERATED_AT_TZ = "Europe/Moscow";
 const ANALYZER_URL = "https://mcp.mpvibe.ru/mcp/analyzer";
@@ -320,7 +321,22 @@ async function fetchWithTimeout(url, timeoutMs = 2_000) {
   }
 }
 
-const basketHostByVol = new Map();
+function readBasketCache() {
+  try {
+    const entries = Object.entries(JSON.parse(fs.readFileSync(BASKET_CACHE_PATH, "utf8")));
+    return new Map(entries.filter(([vol, suffix]) => /^\d+$/.test(vol) && /^\d{2}$/.test(String(suffix))));
+  } catch {
+    return new Map();
+  }
+}
+
+function writeBasketCache(cache) {
+  const sorted = Object.fromEntries([...cache.entries()].sort((a, b) => Number(a[0]) - Number(b[0])));
+  fs.writeFileSync(BASKET_CACHE_PATH, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
+}
+
+const basketHostByVol = readBasketCache();
+let basketCacheDirty = false;
 
 function basketSuffixForVol(vol) {
   return BASKET_VOL_RANGES.find(([maxVol]) => vol <= maxVol)?.[1] || "";
@@ -363,7 +379,10 @@ async function loadCardJson(article) {
   for (const suffix of candidateBasketSuffixes(vol)) {
     const card = await tryHost(suffix);
     if (card) {
-      basketHostByVol.set(String(vol), suffix);
+      if (basketHostByVol.get(String(vol)) !== suffix) {
+        basketHostByVol.set(String(vol), suffix);
+        basketCacheDirty = true;
+      }
       return card;
     }
   }
@@ -392,6 +411,7 @@ async function loadCardsByArticle(articles) {
     }
     return [article, await loadCardJson(article)];
   });
+  if (basketCacheDirty) writeBasketCache(basketHostByVol);
   return new Map(entries);
 }
 
