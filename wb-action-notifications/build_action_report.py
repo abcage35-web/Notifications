@@ -20,6 +20,7 @@ REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "08:05 по МСК")
 ACTION_MIN_FBO = int(os.getenv("ACTION_MIN_FBO", "50"))
 PRICE_ACTION_THRESHOLD = int(os.getenv("PRICE_ACTION_THRESHOLD", "80000"))
 RK_LOW_SPEND_THRESHOLD = int(os.getenv("RK_LOW_SPEND_THRESHOLD", "3000"))
+RK_DISABLE_YESTERDAY_SPEND_THRESHOLD = int(os.getenv("RK_DISABLE_YESTERDAY_SPEND_THRESHOLD", "1000"))
 DRR_DISABLE_THRESHOLD = float(os.getenv("DRR_DISABLE_THRESHOLD", "4"))
 TURNOVER_DISABLE_DAYS = float(os.getenv("TURNOVER_DISABLE_DAYS", "5"))
 SUPPLY_LOOKAHEAD_DAYS = int(os.getenv("SUPPLY_LOOKAHEAD_DAYS", "30"))
@@ -162,6 +163,23 @@ def load_ad_spend_3d_excluding_today(db, articles):
     return {str(row.get("sku")): int(float(row.get("spend") or 0)) for row in rows}
 
 
+def load_ad_spend_yesterday_by_article(db, articles):
+    article_num_sql = ",".join(sorted(str(a) for a in articles if str(a).isdigit()))
+    if not article_num_sql:
+        return {}
+    yesterday = START - timedelta(days=1)
+    rows = db.query(
+        f"""
+        SELECT CAST(sku AS CHAR) AS sku, ROUND(SUM(consumptions), 0) AS spend
+        FROM mp.wb_core__campaign_stat_daily_sku
+        WHERE CAST(sku AS UNSIGNED) IN ({article_num_sql})
+          AND DATE(date_at) = DATE('{yesterday.isoformat()}')
+        GROUP BY sku;
+        """
+    )
+    return {str(row.get("sku")): int(float(row.get("spend") or 0)) for row in rows}
+
+
 def load_orders_3d_excluding_today(db, articles):
     article_num_sql = ",".join(sorted(str(a) for a in articles if str(a).isdigit()))
     if not article_num_sql:
@@ -231,6 +249,7 @@ def enrich_items():
         rk_by_article = fbo.load_rk_by_article(db, articles)
         ad_spend_by_article = fbo.load_ad_spend_by_article(db, articles)
         ad_spend_excl_by_article = load_ad_spend_3d_excluding_today(db, articles)
+        ad_spend_yesterday_by_article = load_ad_spend_yesterday_by_article(db, articles)
         orders_7d_by_article = fbo.load_orders_7d_by_article(db, articles)
         orders_3d_by_article = load_orders_3d_excluding_today(db, articles)
         price_by_article = fbo.load_price_by_article(db, articles)
@@ -249,6 +268,7 @@ def enrich_items():
         info["rk_campaign_ids"] = rk_info.get("rk_campaign_ids", "")
         info["ad_spend_3d"] = ad_spend_by_article.get(article, 0)
         info["ad_spend_3d_excl_today"] = ad_spend_excl_by_article.get(article, 0)
+        info["ad_spend_yesterday"] = ad_spend_yesterday_by_article.get(article, 0)
         order_stats = orders_3d_by_article.get(article, {})
         info["orders_3d_excl_today"] = int(order_stats.get("orders_3d_excl_today") or 0)
         info["revenue_3d_excl_today"] = float(order_stats.get("revenue_3d_excl_today") or 0)
@@ -326,6 +346,7 @@ def is_disable_rk_action(info):
             float(info.get("ad_spend_3d_excl_today") or 0) > RK_LOW_SPEND_THRESHOLD
             or float(info.get("drr_3d_excl_today") or 0) > DRR_DISABLE_THRESHOLD
         )
+        and float(info.get("ad_spend_yesterday") or 0) >= RK_DISABLE_YESTERDAY_SPEND_THRESHOLD
         and supply_is_far_or_missing
     )
 
@@ -352,6 +373,7 @@ def message_item_line(action, info):
         return (
             f"{base} / Обор-сть (3д): {code_value(number(info.get('turnover_3d')) + ' д')} / "
             f"Траты (3д): {code_value(rub(info.get('ad_spend_3d_excl_today')))} / "
+            f"Траты (вчера): {code_value(rub(info.get('ad_spend_yesterday')))} / "
             f"ДРР (3д): {code_value(pct(info.get('drr_3d_excl_today')))} / "
             f"Ближайшая поставка: {code_value(nearest_supply_label(info))} / "
             f"{info['name']} {message_marketer_label(info)}"
@@ -449,7 +471,7 @@ def build_outputs(items):
         f"- Создать РК: FBO >= {ACTION_MIN_FBO}, нет неархивной РК.",
         f"- Проверить активность РК: FBO >= {ACTION_MIN_FBO}, РК есть, траты (3д) < {RK_LOW_SPEND_THRESHOLD} руб., оборачиваемость > 30д.",
         "  - Временное условие: категория `Колготки` исключается из сообщения и Markdown-таблицы.",
-        "- Выключить РК: оборачиваемость 3 полных дней < 5д, траты (3д) > 3 000 руб. или ДРР (3д) > 4%, ближайшая поставка через 5+ дней или отсутствует.",
+        f"- Выключить РК: оборачиваемость 3 полных дней < 5д, траты (3д) > 3 000 руб. или ДРР (3д) > 4%, траты (вчера) >= {RK_DISABLE_YESTERDAY_SPEND_THRESHOLD} руб., ближайшая поставка через 5+ дней или отсутствует.",
         "",
     ]
 
