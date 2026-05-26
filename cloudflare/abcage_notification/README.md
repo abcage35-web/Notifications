@@ -7,6 +7,7 @@ The Worker does not build or send the Pachca report itself. It only calls GitHub
 - repository: `abcage35-web/Notifications`
 - FBO workflow: `.github/workflows/wb-fbo-supply-notifications.yml`
 - actions workflow: `.github/workflows/wb-action-notifications.yml`
+- marketing workflow: `.github/workflows/wb-marketing-notifications.yml`
 - ref: `main`
 
 GitHub Actions then runs the existing Python report sender, which sends the Pachca message, Markdown file and optional thread message.
@@ -85,6 +86,7 @@ Supported command text:
 ```text
 /фбо_уведомление
 /действия_уведомление
+/контент_уведомление
 ```
 
 When this endpoint receives a matching Pachca webhook payload, it extracts the chat id from the payload and dispatches the matching GitHub workflow with `pachca_chat_id` set to that chat. The report is then sent to the chat where the command was called.

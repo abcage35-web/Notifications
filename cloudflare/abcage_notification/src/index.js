@@ -18,6 +18,14 @@ const REPORTS = {
     defaultRunLabel: "08:05 по МСК",
     cron: "5 5 * * *",
   },
+  marketing: {
+    key: "marketing",
+    command: "/контент_уведомление",
+    workflowEnv: "GITHUB_MARKETING_WORKFLOW_ID",
+    defaultWorkflowId: "wb-marketing-notifications.yml",
+    defaultRunLabel: "ручной запуск",
+    cron: "",
+  },
 };
 
 function requireEnv(env, name) {
@@ -132,6 +140,9 @@ function reportByKey(reportKey) {
     "wb-action-notifications.yml": "actions",
     fbo: "fbo",
     "wb-fbo-supply-notifications.yml": "fbo",
+    content: "marketing",
+    marketing: "marketing",
+    "wb-marketing-notifications.yml": "marketing",
   };
   return REPORTS[aliases[normalized] || normalized] || REPORTS.fbo;
 }
@@ -142,7 +153,7 @@ function reportByCommand(text) {
 }
 
 function reportByCron(cron) {
-  return Object.values(REPORTS).find((report) => report.cron === cron) || REPORTS.fbo;
+  return Object.values(REPORTS).find((report) => report.cron && report.cron === cron) || REPORTS.fbo;
 }
 
 function reportByPayload(payload, url) {
@@ -230,7 +241,7 @@ export default {
         ok: true,
         worker: "abcage_notification",
         schedules: Object.fromEntries(
-          Object.values(REPORTS).map((report) => [report.key, report.cron]),
+          Object.values(REPORTS).filter((report) => report.cron).map((report) => [report.key, report.cron]),
         ),
         backupCommands: Object.values(REPORTS).map((report) => report.command),
       });

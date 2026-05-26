@@ -12,6 +12,7 @@
     "GITHUB_WORKFLOW_ID": "wb-fbo-supply-notifications.yml",
     "GITHUB_FBO_WORKFLOW_ID": "wb-fbo-supply-notifications.yml",
     "GITHUB_ACTIONS_WORKFLOW_ID": "wb-action-notifications.yml",
+    "GITHUB_MARKETING_WORKFLOW_ID": "wb-marketing-notifications.yml",
     "GITHUB_REF": "main"
   }
 }
