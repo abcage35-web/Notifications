@@ -1,0 +1,123 @@
+name: One-off Pachca Markdown Sender
+
+on:
+  workflow_dispatch:
+    inputs:
+      pachca_chat_id:
+        description: "Pachca chat id"
+        required: true
+        type: string
+      message_b64:
+        description: "Base64-encoded Pachca message"
+        required: true
+        type: string
+      report_b64:
+        description: "Base64-encoded Markdown report"
+        required: true
+        type: string
+      report_filename:
+        description: "Attached report filename"
+        required: true
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
+      PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id }}
+      MESSAGE_B64: ${{ inputs.message_b64 }}
+      REPORT_B64: ${{ inputs.report_b64 }}
+      REPORT_FILENAME: ${{ inputs.report_filename }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Send Markdown report to Pachca
+        run: |
+          node <<'NODE'
+          const PACHCA_API_BASE = "https://api.pachca.com/api/shared/v1";
+
+          function requiredEnv(name) {
+            const value = process.env[name];
+            if (!value) throw new Error(`${name} is required`);
+            return value;
+          }
+
+          async function pachcaRequest(token, endpoint, options = {}) {
+            const response = await fetch(`${PACHCA_API_BASE}${endpoint}`, {
+              ...options,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                ...(options.headers || {}),
+              },
+            });
+            const text = await response.text();
+            if (!response.ok) {
+              throw new Error(`Pachca ${endpoint} failed: ${response.status} ${text}`);
+            }
+            return text ? JSON.parse(text) : {};
+          }
+
+          async function uploadMarkdown(token, filename, markdown) {
+            const uploadRaw = await pachcaRequest(token, "/uploads", { method: "POST" });
+            const upload = uploadRaw.data || uploadRaw;
+            const fileKey = String(upload.key).replace("${filename}", filename);
+
+            const form = new FormData();
+            for (const [key, value] of Object.entries(upload)) {
+              if (key === "direct_url") continue;
+              form.append(key, String(key === "key" ? fileKey : value));
+            }
+            form.append("file", new Blob([markdown], { type: "text/markdown" }), filename);
+
+            const s3Response = await fetch(upload.direct_url, {
+              method: "POST",
+              body: form,
+            });
+            const s3Text = await s3Response.text();
+            if (!s3Response.ok) {
+              throw new Error(`Pachca S3 upload failed: ${s3Response.status} ${s3Text}`);
+            }
+
+            return {
+              key: fileKey,
+              name: filename,
+              file_type: "file",
+              size: Buffer.byteLength(markdown),
+            };
+          }
+
+          async function sendMessage(token, chatId, content, files) {
+            const payload = {
+              message: {
+                entity_type: "discussion",
+                entity_id: Number(chatId),
+                content,
+                files,
+              },
+            };
+            const data = await pachcaRequest(token, "/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            return data?.data?.id || data?.id;
+          }
+
+          const token = requiredEnv("PACHCA_TOKEN");
+          const chatId = requiredEnv("PACHCA_CHAT_ID");
+          const filename = requiredEnv("REPORT_FILENAME");
+          const message = Buffer.from(requiredEnv("MESSAGE_B64"), "base64").toString("utf8").trim();
+          const report = Buffer.from(requiredEnv("REPORT_B64"), "base64").toString("utf8");
+
+          const filePayload = await uploadMarkdown(token, filename, report);
+          const messageId = await sendMessage(token, chatId, message, [filePayload]);
+
+          console.log(JSON.stringify({ ok: true, chat_id: chatId, message_id: messageId, filename }, null, 2));
+          NODE
