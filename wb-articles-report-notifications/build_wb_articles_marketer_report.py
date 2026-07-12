@@ -1075,7 +1075,8 @@ def append_marketer_summary(lines, summaries):
             revenue_emoji, drr_emoji = niche_statuses(summary)
             lines.append(
                 f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU** · "
-                f"Выручка {revenue_emoji} · ДРР {drr_emoji} · "
+                f"Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])} · "
+                f"ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} · "
                 f"💸 {fmt_percent_one(summary['spend_share'])} общих трат"
             )
 

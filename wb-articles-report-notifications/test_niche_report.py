@@ -68,7 +68,11 @@ class NicheReportTest(unittest.TestCase):
         message = build_niche_message(rows, date(2026, 7, 10), {"Массажеры электрические": 6420})
 
         self.assertIn("**Сводная по маркетологам**", message)
-        self.assertIn("@a.beaver\n**Массажеры электрические · 1 SKU** · Выручка 🟢 · ДРР 🟢", message)
+        self.assertIn(
+            "@a.beaver\n**Массажеры электрические · 1 SKU** · "
+            "Выручка 🟢 90,0% · ДРР 🟢 8,0%",
+            message,
+        )
         self.assertIn("**Детализация по нишам**", message)
         self.assertIn("**Массажеры электрические · 1 SKU** · @a.beaver", message)
         self.assertIn("`Выручка 🟢` · `ДРР 🟢`", message)
