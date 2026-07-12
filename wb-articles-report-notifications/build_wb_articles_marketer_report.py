@@ -294,6 +294,12 @@ def fmt_percent_one(value, blank="-"):
     return f"{dec(value).quantize(Decimal('1.0'))}%".replace(".", ",")
 
 
+def rounded_one(value):
+    if value is None:
+        return None
+    return dec(value).quantize(Decimal("1.0"))
+
+
 def compact_scale(values):
     largest = max((abs(dec(value)) for value in values), default=Decimal("0"))
     if largest >= Decimal("1000000"):
@@ -986,6 +992,8 @@ def build_niche_summaries(rows, date_to: date, stock_by_category=None):
             if values["revenue"] > ACTIVE_NICHE_SKU_THRESHOLD
             or values["ad_spend"] > ACTIVE_NICHE_SKU_THRESHOLD
         )
+        if active_skus == 0:
+            continue
         monthly_plan_revenue = sum((values["plan_rub"] for values in plan_by_sku.values()), Decimal("0"))
         monthly_plan_orders = sum((values["plan_qty"] for values in plan_by_sku.values()), Decimal("0"))
         monthly_plan_spend = sum(
@@ -1048,11 +1056,18 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
         return "\n".join(lines)
 
     for summary in summaries:
-        revenue_emoji = status_emoji(summary["revenue_completion"], lambda value: value >= Decimal("90"))
+        revenue_emoji = status_emoji(
+            rounded_one(summary["revenue_completion"]),
+            lambda value: value >= Decimal("90"),
+        )
         if summary["actual_drr"] is None or summary["planned_drr"] is None:
             drr_emoji = "⚪"
         else:
-            drr_emoji = "🟢" if summary["actual_drr"] <= summary["planned_drr"] else "🔴"
+            drr_emoji = (
+                "🟢"
+                if rounded_one(summary["actual_drr"]) <= rounded_one(summary["planned_drr"])
+                else "🔴"
+            )
         lines.extend(
             [
                 "",

@@ -51,6 +51,15 @@ class NicheReportTest(unittest.TestCase):
 
         self.assertEqual(summary["active_skus"], 1)
 
+    def test_niches_without_active_skus_are_excluded(self):
+        rows = [
+            row(10, 101, 5_000, 0, 1, plan_rub=31_000, plan_qty=31, planned_drr=8),
+        ]
+
+        summaries = build_niche_summaries(rows, date(2026, 7, 10))
+
+        self.assertEqual(summaries, [])
+
     def test_message_uses_compact_format_and_status_chips(self):
         rows = [
             row(10, 101, 9_000_000, 720_000, 90, plan_rub=31_000_000, plan_qty=310, planned_drr=8),
@@ -64,6 +73,16 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", message)
         self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", message)
         self.assertIn("📦 FBO `6 420 шт.`", message)
+
+    def test_status_matches_the_displayed_one_decimal_values(self):
+        rows = [
+            row(10, 101, 9_000_000, 651_600, 90, plan_rub=31_000_000, plan_qty=310, planned_drr=7.2),
+        ]
+
+        message = build_niche_message(rows, date(2026, 7, 10))
+
+        self.assertIn("`ДРР 🟢`", message)
+        self.assertIn("🎯 ДРР `7,2% / 7,2%`", message)
 
 
 if __name__ == "__main__":
