@@ -71,7 +71,8 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("**Сводная по маркетологам**", message)
         self.assertIn(
             "@a.beaver\n**Массажеры электрические · 1 SKU**\n"
-            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%`",
+            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
+            "`🔄 Оборачиваемость 713,3 дн.`",
             message,
         )
         self.assertIn("**Детализация по нишам**", message)
@@ -80,7 +81,7 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("💰 Выручка `90,0%` — `9,0 / 10,0 млн ₽`", message)
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", message)
         self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", message)
-        self.assertIn("📦 FBO `6 420 шт.` — оборачиваемость `713,3 дн.`", message)
+        self.assertIn("📦 FBO `6 420 шт.` — `713,3 дн.`", message)
 
     def test_status_matches_the_displayed_one_decimal_values(self):
         rows = [

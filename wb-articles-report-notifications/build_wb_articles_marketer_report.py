@@ -1088,7 +1088,8 @@ def append_marketer_summary(lines, summaries):
                 f"`Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
                 f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
                 f"{fmt_percent_one(summary['planned_drr'])}` · "
-                f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}`"
+                f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "
+                f"`🔄 Оборачиваемость {fmt_days(summary['turnover_days'])}`"
             )
 
 
@@ -1120,7 +1121,7 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
                 f"• 🛒 Заказы `{fmt_percent_one(summary['orders_completion'])}` — "
                 f"`{fmt_compact_pair(summary['orders'], summary['plan_orders'])}`",
                 f"• 📦 FBO `{fmt_int(summary['fbo'])} шт.` — "
-                f"оборачиваемость `{fmt_days(summary['turnover_days'])}`",
+                f"`{fmt_days(summary['turnover_days'])}`",
             ]
         )
     return "\n".join(lines)
