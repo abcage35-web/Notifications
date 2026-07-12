@@ -25,6 +25,100 @@ REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
 REVENUE_KEY = "finance_revenue"
+ACTIVE_NICHE_SKU_THRESHOLD = Decimal("5000")
+CATEGORY_MARKETER_NAMES = {
+    "Сумки": "Саша М.",
+    "Машинки": "Саша Н.",
+    "Конструкторы": "Саша Н.",
+    "Наборы для рисования": "Саша Н.",
+    "Настольные игры для детей": "Саша Н.",
+    "Железные дороги": "Саша Н.",
+    "Роботы": "Саша Н.",
+    "Радиоуправляемые игрушки": "Саша Н.",
+    "Игрушечное оружие": "Саша М.",
+    "Куклы": "Саша М.",
+    "Игрушечная посуда": "Саша М.",
+    "Рюкзаки": "Саша М.",
+    "Колготки": "Антон",
+    "Эспандеры": "Саша Н.",
+    "Игровые наборы": "Саша М.",
+    "Фигурки-игрушки": "Саша М.",
+    "Пеналы": "Саша М.",
+    "Одеяла": "Саша Н.",
+    "Наборы для лепки": "Саша Н.",
+    "Коврики спортивные": "Саша М.",
+    "Упоры для отжиманий": "Саша Н.",
+    "Утяжелители": "Саша М.",
+    "Круги для плавания": "Саша М.",
+    "Матрасы для плавания": "Саша М.",
+    "Тренажеры": "Саша М.",
+    "Палатки": "Саша Н.",
+    "Адаптеры": "Антон",
+    "Столы туристические": "Саша Н.",
+    "Массажеры электрические": "Антон",
+    "Обручи": "Саша М.",
+    "Чайники электрические": "Антон",
+    "Игровые коврики": "Саша Н.",
+    "Календари": "Саша Н.",
+    "Наборы для поделок": "Саша Н.",
+    "Кастрюли": "Саша М.",
+    "Гантели": "Саша М.",
+    "Кашпо": "Саша Н.",
+    "Массажеры механические": "Антон",
+    "Кукольные домики": "Саша М.",
+    "Игровые палатки": "Саша М.",
+    "Самолеты и вертолеты": "Саша Н.",
+    "Головоломки": "Саша Н.",
+    "Снуды": "Саша М.",
+    "Горшки для цветов": "Саша Н.",
+    "Опрыскиватели": "Саша Н.",
+    "Спортивные игровые наборы": "Саша М.",
+    "Этажерки": "Саша Н.",
+    "Блоки для йоги": "Саша Н.",
+    "Ирригаторы": "Антон",
+    "Швабры": "Антон",
+    "Стулья": "Саша Н.",
+    "Коврики детские": "Саша Н.",
+    "Сушилки для белья": "Саша М.",
+    "Фитболы": "Саша Н.",
+    "Грифы": "Саша М.",
+    "Диски для штанг и гантелей": "Саша М.",
+    "Табуреты детские": "Саша Н.",
+    "Светильники уличные": "Саша Н.",
+    "Автотреки": "Саша Н.",
+    "Шнуровки": "Саша М.",
+    "Видеокарты": "Антон",
+    "Модули памяти": "Антон",
+    "Тенты для бассейнов": "Антон",
+    "Ролики массажные": "Саша М.",
+    "Походный душ": "Антон",
+    "Велотренажеры": "Саша М.",
+    "Аксессуары для массажеров": "Антон",
+    "Беговые дорожки": "Саша М.",
+    "Тренажеры эллиптические": "Саша М.",
+    "Зажимы на гриф": "Саша М.",
+    "Кресла компьютерные": "Саша Н.",
+    "Комплекты садовой мебели": "Антон",
+    "Игрушечные парковки": "Саша Н.",
+    "Сюжетные игровые наборы": "Саша Н.",
+    "Лестницы для бассейнов": "Антон",
+    "Шатры и беседки": "Антон",
+    "Аксессуары для бассейна": "Антон",
+    "Кресла игровые": "Саша Н.",
+    "Бассейны надувные": "Саша Н.",
+    "Бассейны каркасные": "Саша М.",
+    "Валики спортивные": "Саша Н.",
+    "Бассейн надувной": "Саша Н.",
+    "Бассейн каркасный": "Саша М.",
+    "Спортивный товар": "Антон",
+    "3D-ручки": "Саша М.",
+    "Вешалки-плечики": "Саша М.",
+}
+CATEGORY_MARKETER_MENTIONS = {
+    "Саша М.": "@a.manokhin",
+    "Саша Н.": "@a.nekrasov",
+    "Антон": "@a.beaver",
+}
 MESSAGE_NAME_REPLACEMENTS = {
     "ИП Карпачев": "Паша 1",
     "ИП Сытин": "Стас 1",
@@ -192,6 +286,43 @@ def fmt_percent(value, blank_if_none=True):
     if value is None:
         return "" if blank_if_none else "0.00%"
     return f"{dec(value).quantize(Decimal('1.00'))}%"
+
+
+def fmt_percent_one(value, blank="-"):
+    if value is None:
+        return blank
+    return f"{dec(value).quantize(Decimal('1.0'))}%".replace(".", ",")
+
+
+def compact_scale(values):
+    largest = max((abs(dec(value)) for value in values), default=Decimal("0"))
+    if largest >= Decimal("1000000"):
+        return Decimal("1000000"), "млн"
+    if largest >= Decimal("1000"):
+        return Decimal("1000"), "тыс."
+    return Decimal("1"), ""
+
+
+def fmt_compact_value(value, currency=False):
+    scale, unit = compact_scale([value])
+    if scale == 1:
+        label = fmt_int(value)
+    else:
+        label = str((dec(value) / scale).quantize(Decimal("1.0"))).replace(".", ",")
+    suffix = " ".join(part for part in (unit, "₽" if currency else "") if part)
+    return f"{label} {suffix}".strip()
+
+
+def fmt_compact_pair(actual, plan, currency=False):
+    scale, unit = compact_scale([actual, plan])
+    if scale == 1:
+        actual_label = fmt_int(actual)
+        plan_label = fmt_int(plan)
+    else:
+        actual_label = str((dec(actual) / scale).quantize(Decimal("1.0"))).replace(".", ",")
+        plan_label = str((dec(plan) / scale).quantize(Decimal("1.0"))).replace(".", ",")
+    suffix = " ".join(part for part in (unit, "₽" if currency else "") if part)
+    return f"{actual_label} / {plan_label}{(' ' + suffix) if suffix else ''}"
 
 
 def fmt_plan_qty_daily(value):
@@ -428,6 +559,42 @@ def resolve_stock_date(db: McpSql, requested_stock_date: date) -> date:
     if not rows or not rows[0].get("stock_date"):
         return requested_stock_date
     return parse_date(str(rows[0]["stock_date"])[:10])
+
+
+def query_niche_stocks(db: McpSql, stock_date: date):
+    sql = f"""
+    WITH stock_by_sku AS (
+        SELECT CAST(stock.sku AS UNSIGNED) AS sku_num,
+               stock.account_id,
+               SUM(COALESCE(stock.fbo_real, 0)) AS current_stock
+        FROM mp.mp_core__realtime_stocks_data stock
+        WHERE stock.date = '{stock_date.isoformat()}'
+          AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+          AND stock.sku REGEXP '^[0-9]+$'
+        GROUP BY sku_num, stock.account_id
+    ),
+    card_category AS (
+        SELECT CAST(card.sku AS UNSIGNED) AS sku_num,
+               card.account_id,
+               MAX(COALESCE(card.object, card_all.subject_name, 'Без ниши')) AS category
+        FROM mp.wb_core__card card
+        LEFT JOIN mp.vw_mp_core__card_all card_all
+          ON CAST(card_all.sku AS UNSIGNED) = CAST(card.sku AS UNSIGNED)
+         AND card_all.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+        GROUP BY sku_num, card.account_id
+    )
+    SELECT COALESCE(category.category, 'Без ниши') AS category,
+           SUM(stock.current_stock) AS current_stock
+    FROM stock_by_sku stock
+    LEFT JOIN card_category category
+      ON category.sku_num = stock.sku_num
+     AND category.account_id = stock.account_id
+    GROUP BY category;
+    """
+    return {
+        str(row.get("category") or "Без ниши"): dec(row.get("current_stock"))
+        for row in db.query(sql)
+    }
 
 
 def enrich_rows(raw_rows, calculation_from: date, old_ip_by_sku: dict[str, str]):
@@ -767,6 +934,142 @@ def append_metric(lines, title, mtd_values, yesterday_values, day_before_values,
     lines.append(f"• • вчера < позавчера: `{formatter(yesterday_values)}` < `{formatter(day_before_values)}`")
 
 
+def category_marketer(category, rows):
+    marketer_name = CATEGORY_MARKETER_NAMES.get(category)
+    if marketer_name:
+        return CATEGORY_MARKETER_MENTIONS.get(marketer_name, marketer_name)
+
+    counts = defaultdict(int)
+    for row in rows:
+        marketer = str(row.get("marketer") or "").strip()
+        if marketer and marketer != "-":
+            counts[marketer] += 1
+    if not counts:
+        return "маркетолог не указан"
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
+def build_niche_summaries(rows, date_to: date, stock_by_category=None):
+    current_month_from = month_start(date_to)
+    current_rows = [row for row in rows if current_month_from <= row["date"] <= date_to]
+    stock_by_category = stock_by_category or {}
+    days_in_month = Decimal(monthrange(date_to.year, date_to.month)[1])
+    plan_factor = Decimal(date_to.day) / days_in_month
+
+    grouped_rows = defaultdict(list)
+    for row in current_rows:
+        grouped_rows[str(row.get("category") or "Без ниши")].append(row)
+
+    total_spend = sum((row["ad_spend"] for row in current_rows), Decimal("0"))
+    summaries = []
+    for category, category_rows in grouped_rows.items():
+        revenue = sum((row[REVENUE_KEY] for row in category_rows), Decimal("0"))
+        spend = sum((row["ad_spend"] for row in category_rows), Decimal("0"))
+        orders = sum((row["orders_qty"] for row in category_rows), Decimal("0"))
+
+        sku_actuals = defaultdict(lambda: {"revenue": Decimal("0"), "ad_spend": Decimal("0")})
+        plan_by_sku = {}
+        for row in category_rows:
+            sku = str(row["sku"])
+            sku_actuals[sku]["revenue"] += row[REVENUE_KEY]
+            sku_actuals[sku]["ad_spend"] += row["ad_spend"]
+            plan_key = (int(row["account_id"]), sku)
+            plan_by_sku[plan_key] = {
+                "plan_qty": row["plan_qty"],
+                "plan_rub": row["plan_rub"],
+                "planned_drr": row["planned_drr"],
+            }
+
+        active_skus = sum(
+            1
+            for values in sku_actuals.values()
+            if values["revenue"] > ACTIVE_NICHE_SKU_THRESHOLD
+            or values["ad_spend"] > ACTIVE_NICHE_SKU_THRESHOLD
+        )
+        monthly_plan_revenue = sum((values["plan_rub"] for values in plan_by_sku.values()), Decimal("0"))
+        monthly_plan_orders = sum((values["plan_qty"] for values in plan_by_sku.values()), Decimal("0"))
+        monthly_plan_spend = sum(
+            (
+                values["plan_rub"] * values["planned_drr"] / Decimal("100")
+                for values in plan_by_sku.values()
+                if values["planned_drr"] > 0
+            ),
+            Decimal("0"),
+        )
+        drr_plan_revenue = sum(
+            (values["plan_rub"] for values in plan_by_sku.values() if values["planned_drr"] > 0),
+            Decimal("0"),
+        )
+        plan_revenue = monthly_plan_revenue * plan_factor
+        plan_orders = monthly_plan_orders * plan_factor
+        planned_drr = pct(monthly_plan_spend, drr_plan_revenue)
+        actual_drr = pct(spend, revenue)
+        revenue_completion = pct(revenue, plan_revenue)
+        orders_completion = pct(orders, plan_orders)
+
+        summaries.append(
+            {
+                "category": category,
+                "marketer": category_marketer(category, category_rows),
+                "active_skus": active_skus,
+                "revenue": revenue,
+                "plan_revenue": plan_revenue,
+                "revenue_completion": revenue_completion,
+                "spend": spend,
+                "spend_share": pct(spend, total_spend),
+                "actual_drr": actual_drr,
+                "planned_drr": planned_drr,
+                "orders": orders,
+                "plan_orders": plan_orders,
+                "orders_completion": orders_completion,
+                "fbo": dec(stock_by_category.get(category)),
+            }
+        )
+
+    return sorted(summaries, key=lambda item: (-item["revenue"], -item["spend"], item["category"]))
+
+
+def status_emoji(value, predicate):
+    if value is None:
+        return "⚪"
+    return "🟢" if predicate(value) else "🔴"
+
+
+def build_niche_message(rows, date_to: date, stock_by_category=None):
+    current_month_from = month_start(date_to)
+    summaries = build_niche_summaries(rows, date_to, stock_by_category)
+    lines = [
+        "**WB: показатели по нишам**",
+        f"`{fmt_date(current_month_from)}–{fmt_date(date_to)} · факт / план`",
+        "`SKU: выручка или траты MTD > 5 тыс. ₽`",
+    ]
+    if not summaries:
+        lines.extend(["", "Нет данных за текущий месяц."])
+        return "\n".join(lines)
+
+    for summary in summaries:
+        revenue_emoji = status_emoji(summary["revenue_completion"], lambda value: value >= Decimal("90"))
+        if summary["actual_drr"] is None or summary["planned_drr"] is None:
+            drr_emoji = "⚪"
+        else:
+            drr_emoji = "🟢" if summary["actual_drr"] <= summary["planned_drr"] else "🔴"
+        lines.extend(
+            [
+                "",
+                f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU** · {summary['marketer']}",
+                f"`Выручка {revenue_emoji}` · `ДРР {drr_emoji}` · `💸 {fmt_percent_one(summary['spend_share'])} общих трат`",
+                f"• 💰 Выручка `{fmt_percent_one(summary['revenue_completion'])}` — "
+                f"`{fmt_compact_pair(summary['revenue'], summary['plan_revenue'], currency=True)}`",
+                f"• 🎯 ДРР `{fmt_percent_one(summary['actual_drr'])} / {fmt_percent_one(summary['planned_drr'])}` "
+                f"— траты `{fmt_compact_value(summary['spend'], currency=True)}`",
+                f"• 🛒 Заказы `{fmt_percent_one(summary['orders_completion'])}` — "
+                f"`{fmt_compact_pair(summary['orders'], summary['plan_orders'])}`",
+                f"• 📦 FBO `{fmt_int(summary['fbo'])} шт.`",
+            ]
+        )
+    return "\n".join(lines)
+
+
 def build_message(rows, date_from: date, date_to: date):
     current_month_from = month_start(date_to)
     current_rows = [row for row in rows if current_month_from <= row["date"] <= date_to]
@@ -919,6 +1222,7 @@ def main():
     try:
         stock_date = resolve_stock_date(db, requested_stock_date)
         raw_rows = query_rows(db, calculation_from, date_to, stock_date)
+        niche_stocks = query_niche_stocks(db, stock_date)
     finally:
         db.close()
 
@@ -928,13 +1232,26 @@ def main():
     report_name = f"wb_articles_marketer_metrics_30d_{date_from.isoformat()}_{date_to.isoformat()}"
     md_path = out_dir / f"{report_name}.md"
     message_path = out_dir / f"{report_name}_message.md"
+    thread_message_path = out_dir / f"{report_name}_thread.md"
     summary_path = out_dir / f"{report_name}.json"
 
     md_path.write_text(build_markdown(output_rows, date_from, date_to, stock_date, calculation_from), encoding="utf-8")
     message_path.write_text(build_message(calculation_rows, date_from, date_to), encoding="utf-8")
+    thread_message_path.write_text(
+        build_niche_message(calculation_rows, date_to, niche_stocks),
+        encoding="utf-8",
+    )
 
     summary = build_summary(output_rows, calculation_rows, date_from, date_to, stock_date)
-    summary.update({"md": str(md_path), "message": str(message_path), "summary_json": str(summary_path)})
+    summary.update(
+        {
+            "md": str(md_path),
+            "message": str(message_path),
+            "thread_message": str(thread_message_path),
+            "niches": len(build_niche_summaries(calculation_rows, date_to, niche_stocks)),
+            "summary_json": str(summary_path),
+        }
+    )
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

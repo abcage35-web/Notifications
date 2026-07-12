@@ -70,6 +70,7 @@ def send_message(token, entity_type, entity_id, content, files=None):
             "entity_type": entity_type,
             "entity_id": int(entity_id),
             "content": content,
+            "link_preview": False,
         }
     }
     if files:
@@ -82,7 +83,25 @@ def send_message(token, entity_type, entity_id, content, files=None):
     )
     response.raise_for_status()
     data = response.json()
-    return data.get("data", {}).get("id") or data.get("id")
+    message_id = data.get("data", {}).get("id") or data.get("id")
+    if not message_id:
+        raise RuntimeError("Pachca did not return a message id")
+    return message_id
+
+
+def create_thread(token, message_id):
+    response = requests.post(
+        f"{PACHCA_API_BASE}/messages/{int(message_id)}/thread",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    data = payload.get("data", payload)
+    thread_id = data.get("id")
+    if not thread_id:
+        raise RuntimeError("Pachca did not return a thread id")
+    return thread_id
 
 
 def main():
@@ -92,20 +111,28 @@ def main():
 
     md_path = Path(report["md"])
     message_path = Path(report["message"])
+    thread_message_path = Path(report["thread_message"])
 
     file_payload = upload_file(token, md_path)
     content = message_path.read_text(encoding="utf-8").strip()
     message_id = send_message(token, "discussion", chat_id, content, [file_payload])
+    thread_id = create_thread(token, message_id)
+    thread_content = thread_message_path.read_text(encoding="utf-8").strip()
+    thread_message_id = send_message(token, "discussion", thread_id, thread_content)
 
     print(
         json.dumps(
             {
                 "message_id": message_id,
+                "thread_id": thread_id,
+                "thread_message_id": thread_message_id,
                 "md": str(md_path),
                 "message": str(message_path),
+                "thread_message": str(thread_message_path),
                 "rows": report.get("rows"),
                 "skus": report.get("skus"),
                 "cabinets": report.get("cabinets"),
+                "niches": report.get("niches"),
                 "current_month_drr": report.get("current_month_drr"),
             },
             ensure_ascii=False,
