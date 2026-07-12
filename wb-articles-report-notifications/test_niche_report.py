@@ -70,12 +70,12 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("**Сводная по маркетологам**", message)
         self.assertIn(
             "@a.beaver\n**Массажеры электрические · 1 SKU**\n"
-            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0%` · `💸 100,0% общих трат`",
+            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0%` · `💸 Доля трат 100,0%`",
             message,
         )
         self.assertIn("**Детализация по нишам**", message)
         self.assertIn("**Массажеры электрические · 1 SKU** · @a.beaver", message)
-        self.assertIn("`Выручка 🟢` · `ДРР 🟢`", message)
+        self.assertIn("`Выручка 🟢` · `ДРР 🟢` · `💸 Доля трат 100,0%`", message)
         self.assertIn("💰 Выручка `90,0%` — `9,0 / 10,0 млн ₽`", message)
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", message)
         self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", message)
