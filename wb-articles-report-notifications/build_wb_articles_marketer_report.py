@@ -1126,16 +1126,26 @@ def append_marketer_summary(lines, summaries):
         by_season = defaultdict(list)
         for summary in marketer_summaries:
             by_season[summary["season_type"]].append(summary)
-        for season_type, season_summaries in sorted(
+        season_groups = sorted(
             by_season.items(),
             key=lambda item: SEASON_META[item[0]]["order"],
-        ):
-            lines.extend(["", f"**{SEASON_META[season_type]['summary']}**"])
-            for summary in season_summaries:
+        )
+        for season_index, (season_type, season_summaries) in enumerate(season_groups):
+            season_is_last = season_index == len(season_groups) - 1
+            season_branch = "└─" if season_is_last else "├─"
+            season_indent = "   " if season_is_last else "│  "
+            lines.append(f"{season_branch} **{SEASON_META[season_type]['summary']}**")
+            for niche_index, summary in enumerate(season_summaries):
+                niche_is_last = niche_index == len(season_summaries) - 1
+                niche_branch = "└─" if niche_is_last else "├─"
+                chip_indent = f"{season_indent}↳ "
                 revenue_emoji, drr_emoji = niche_statuses(summary)
-                lines.append(f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU**")
                 lines.append(
-                    f"`Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
+                    f"{season_indent}{niche_branch} "
+                    f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU**"
+                )
+                lines.append(
+                    f"{chip_indent}`Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
                     f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
                     f"{fmt_percent_one(summary['planned_drr'])}` · "
                     f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "
