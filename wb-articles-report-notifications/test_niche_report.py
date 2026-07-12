@@ -38,6 +38,7 @@ class NicheReportTest(unittest.TestCase):
         self.assertEqual(summary["actual_drr"], Decimal("8"))
         self.assertEqual(summary["planned_drr"], Decimal("8"))
         self.assertEqual(summary["active_skus"], 1)
+        self.assertEqual(summary["season_type"], "all_season")
         self.assertEqual(summary["fbo"], Decimal("6420"))
         self.assertEqual(summary["turnover_days"], Decimal("713.3333333333333333333333333"))
         self.assertEqual(summary["marketer"], "@a.beaver")
@@ -69,14 +70,15 @@ class NicheReportTest(unittest.TestCase):
         message = build_niche_message(rows, date(2026, 7, 10), {"Массажеры электрические": 6420})
 
         self.assertIn("**Сводная по маркетологам**", message)
+        self.assertIn("**♾️ Всесезонные**", message)
         self.assertIn(
-            "@a.beaver\n**Массажеры электрические · 1 SKU**\n"
+            "@a.beaver\n\n**♾️ Всесезонные**\n**Массажеры электрические · 1 SKU**\n"
             "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
             "`🔄 Оборачиваемость 713,3 дн.`",
             message,
         )
         self.assertIn("**Детализация по нишам**", message)
-        self.assertIn("**Массажеры электрические · 1 SKU** · @a.beaver", message)
+        self.assertIn("**Массажеры электрические · ♾️ Всесезонная · 1 SKU** · @a.beaver", message)
         self.assertIn("`Выручка 🟢` · `ДРР 🟢` · `💸 Доля трат 100,0%`", message)
         self.assertIn("💰 Выручка `90,0%` — `9,0 / 10,0 млн ₽`", message)
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", message)

@@ -119,6 +119,47 @@ CATEGORY_MARKETER_MENTIONS = {
     "Саша Н.": "@a.nekrasov",
     "Антон": "@a.beaver",
 }
+NICHE_SEASON_TYPES = {
+    "Аксессуары для бассейна": "seasonal",
+    "Бассейны каркасные": "seasonal",
+    "Бассейны надувные": "seasonal",
+    "Блоки для йоги": "all_season",
+    "Гантели": "all_season",
+    "Игровые наборы": "all_season",
+    "Игровые палатки": "all_season",
+    "Игрушечное оружие": "all_season",
+    "Коврики детские": "all_season",
+    "Коврики спортивные": "all_season",
+    "Колготки": "seasonal",
+    "Колготки для малышей": "seasonal",
+    "Комплекты садовой мебели": "seasonal",
+    "Конструкторы": "all_season",
+    "Круги для плавания": "seasonal",
+    "Лестницы для бассейнов": "seasonal",
+    "Массажеры электрические": "all_season",
+    "Матрасы для плавания": "seasonal",
+    "Одеяла": "seasonal",
+    "Опрыскиватели": "seasonal",
+    "Походный душ": "seasonal",
+    "Пылесосы": "all_season",
+    "Радиоуправляемые игрушки": "all_season",
+    "Ролики массажные": "all_season",
+    "Светильники уличные": "seasonal",
+    "Скиммеры": "seasonal",
+    "Столы туристические": "seasonal",
+    "Стулья": "seasonal",
+    "Тенты для бассейнов": "seasonal",
+    "Тренажеры": "all_season",
+    "Фитболы": "all_season",
+    "Шатры и беседки": "seasonal",
+    "Швабры": "all_season",
+    "Этажерки": "all_season",
+}
+SEASON_META = {
+    "seasonal": {"summary": "☀️ Сезонные", "detail": "☀️ Сезонная", "order": 0},
+    "all_season": {"summary": "♾️ Всесезонные", "detail": "♾️ Всесезонная", "order": 1},
+    "unknown": {"summary": "❔ Сезонность не определена", "detail": "❔ Не определена", "order": 2},
+}
 MESSAGE_NAME_REPLACEMENTS = {
     "ИП Карпачев": "Паша 1",
     "ИП Сытин": "Стас 1",
@@ -1024,6 +1065,7 @@ def build_niche_summaries(rows, date_to: date, stock_by_category=None):
         summaries.append(
             {
                 "category": category,
+                "season_type": NICHE_SEASON_TYPES.get(category, "unknown"),
                 "marketer": category_marketer(category, category_rows),
                 "active_skus": active_skus,
                 "revenue": revenue,
@@ -1081,16 +1123,24 @@ def append_marketer_summary(lines, summaries):
     )
     for marketer, marketer_summaries in marketer_groups:
         lines.extend(["", marketer])
+        by_season = defaultdict(list)
         for summary in marketer_summaries:
-            revenue_emoji, drr_emoji = niche_statuses(summary)
-            lines.append(f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU**")
-            lines.append(
-                f"`Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
-                f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
-                f"{fmt_percent_one(summary['planned_drr'])}` · "
-                f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "
-                f"`🔄 Оборачиваемость {fmt_days(summary['turnover_days'])}`"
-            )
+            by_season[summary["season_type"]].append(summary)
+        for season_type, season_summaries in sorted(
+            by_season.items(),
+            key=lambda item: SEASON_META[item[0]]["order"],
+        ):
+            lines.extend(["", f"**{SEASON_META[season_type]['summary']}**"])
+            for summary in season_summaries:
+                revenue_emoji, drr_emoji = niche_statuses(summary)
+                lines.append(f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU**")
+                lines.append(
+                    f"`Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
+                    f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
+                    f"{fmt_percent_one(summary['planned_drr'])}` · "
+                    f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "
+                    f"`🔄 Оборачиваемость {fmt_days(summary['turnover_days'])}`"
+                )
 
 
 def build_niche_message(rows, date_to: date, stock_by_category=None):
@@ -1112,7 +1162,9 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
         lines.extend(
             [
                 "",
-                f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU** · {summary['marketer']}",
+                f"**{md_cell(summary['category'])} · "
+                f"{SEASON_META[summary['season_type']]['detail']} · "
+                f"{summary['active_skus']} SKU** · {summary['marketer']}",
                 f"`Выручка {revenue_emoji}` · `ДРР {drr_emoji}` · `💸 Доля трат {fmt_percent_one(summary['spend_share'])}`",
                 f"• 💰 Выручка `{fmt_percent_one(summary['revenue_completion'])}` — "
                 f"`{fmt_compact_pair(summary['revenue'], summary['plan_revenue'], currency=True)}`",
