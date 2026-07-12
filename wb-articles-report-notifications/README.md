@@ -24,6 +24,7 @@ Daily WB article-level marketer report for Pachca.
 - Within each marketer, niches are grouped by season type; detailed headings place season type between niche name and active SKU count.
 - The marketer summary uses `•` / `• •` bullet levels like the root report and has blank lines only between marketers.
 - Revenue and order plans are prorated through the report date; green revenue status starts at 90% completion, and green DRR means fact is not above plan.
+- Niches are sorted by spend share descending in both the marketer summary and the detail thread.
 
 Generated report files are ignored by git.
 

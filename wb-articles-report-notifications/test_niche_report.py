@@ -66,6 +66,26 @@ class NicheReportTest(unittest.TestCase):
 
         self.assertEqual(summaries, [])
 
+    def test_niches_are_sorted_by_spend_share_descending(self):
+        rows = [
+            row(10, 101, 10_000_000, 100_000, 100, plan_rub=31_000_000, plan_qty=310, planned_drr=8),
+            row(
+                10,
+                102,
+                1_000_000,
+                200_000,
+                10,
+                plan_rub=3_100_000,
+                plan_qty=31,
+                planned_drr=8,
+                category="Гантели",
+            ),
+        ]
+
+        summaries = build_niche_summaries(rows, date(2026, 7, 10))
+
+        self.assertEqual([summary["category"] for summary in summaries], ["Гантели", "Массажеры электрические"])
+
     def test_message_uses_compact_format_and_status_chips(self):
         rows = [
             row(10, 101, 9_000_000, 720_000, 90, plan_rub=31_000_000, plan_qty=310, planned_drr=8),

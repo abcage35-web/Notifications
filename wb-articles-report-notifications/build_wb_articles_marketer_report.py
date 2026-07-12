@@ -1086,7 +1086,7 @@ def build_niche_summaries(rows, date_to: date, stock_by_category=None):
             }
         )
 
-    return sorted(summaries, key=lambda item: (-item["revenue"], -item["spend"], item["category"]))
+    return sorted(summaries, key=lambda item: (-item["spend"], -item["revenue"], item["category"]))
 
 
 def status_emoji(value, predicate):
