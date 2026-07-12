@@ -17,6 +17,7 @@ Daily WB article-level marketer report for Pachca.
 - `REPORT_WINDOW_DAYS` controls the output window, default is `30`.
 - Rows are included only when there is finance revenue or RK spend. FBO is shown as a reference column, not as a filter.
 - The niche thread covers MTD revenue/plan, DRR fact/plan, RK spend, orders fact/plan, current FBO and active SKU count.
+- Niche turnover is current FBO divided by average daily MTD orders and is displayed in days.
 - Active niche SKU means MTD finance revenue above 5,000 RUB or MTD RK spend above 5,000 RUB.
 - Niches with zero active SKU are omitted from the thread report.
 - The thread starts with a marketer-grouped niche summary and continues with detailed niche metrics.

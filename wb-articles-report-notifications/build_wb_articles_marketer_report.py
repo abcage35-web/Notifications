@@ -300,6 +300,12 @@ def rounded_one(value):
     return dec(value).quantize(Decimal("1.0"))
 
 
+def fmt_days(value):
+    if value is None:
+        return "-"
+    return f"{str(rounded_one(value)).replace('.', ',')} дн."
+
+
 def compact_scale(values):
     largest = max((abs(dec(value)) for value in values), default=Decimal("0"))
     if largest >= Decimal("1000000"):
@@ -1031,6 +1037,10 @@ def build_niche_summaries(rows, date_to: date, stock_by_category=None):
                 "plan_orders": plan_orders,
                 "orders_completion": orders_completion,
                 "fbo": dec(stock_by_category.get(category)),
+                "turnover_days": safe_div(
+                    dec(stock_by_category.get(category)),
+                    orders / Decimal(date_to.day) if orders else Decimal("0"),
+                ),
             }
         )
 
@@ -1109,7 +1119,8 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
                 f"— траты `{fmt_compact_value(summary['spend'], currency=True)}`",
                 f"• 🛒 Заказы `{fmt_percent_one(summary['orders_completion'])}` — "
                 f"`{fmt_compact_pair(summary['orders'], summary['plan_orders'])}`",
-                f"• 📦 FBO `{fmt_int(summary['fbo'])} шт.`",
+                f"• 📦 FBO `{fmt_int(summary['fbo'])} шт.` — "
+                f"оборачиваемость `{fmt_days(summary['turnover_days'])}`",
             ]
         )
     return "\n".join(lines)
