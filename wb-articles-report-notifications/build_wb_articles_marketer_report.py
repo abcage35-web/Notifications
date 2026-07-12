@@ -1131,15 +1131,12 @@ def append_marketer_summary(lines, summaries):
             key=lambda item: SEASON_META[item[0]]["order"],
         )
         for season_type, season_summaries in season_groups:
-            lines.append(f"● **{SEASON_META[season_type]['summary']}**")
+            lines.append(f"**{SEASON_META[season_type]['summary'].upper()}**")
             for summary in season_summaries:
                 revenue_emoji, drr_emoji = niche_statuses(summary)
+                lines.append(f"• {md_cell(summary['category'])} · {summary['active_skus']} SKU")
                 lines.append(
-                    "　• "
-                    f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU**"
-                )
-                lines.append(
-                    f"　　◦ `Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
+                    f"• • `Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
                     f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
                     f"{fmt_percent_one(summary['planned_drr'])}` · "
                     f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "

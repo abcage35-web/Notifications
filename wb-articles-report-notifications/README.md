@@ -22,7 +22,7 @@ Daily WB article-level marketer report for Pachca.
 - Niches with zero active SKU are omitted from the thread report.
 - The thread starts with a marketer-grouped niche summary and continues with detailed niche metrics.
 - Within each marketer, niches are grouped by season type; detailed headings place season type between niche name and active SKU count.
-- The marketer summary uses round bullet levels for hierarchy and has blank lines only between marketers.
+- The marketer summary uses `•` / `• •` bullet levels like the root report and has blank lines only between marketers.
 - Revenue and order plans are prorated through the report date; green revenue status starts at 90% completion, and green DRR means fact is not above plan.
 
 Generated report files are ignored by git.
