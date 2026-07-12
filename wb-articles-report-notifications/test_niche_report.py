@@ -70,7 +70,7 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("**Сводная по маркетологам**", message)
         self.assertIn(
             "@a.beaver\n**Массажеры электрические · 1 SKU**\n"
-            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0%` · `💸 Доля трат 100,0%`",
+            "`Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%`",
             message,
         )
         self.assertIn("**Детализация по нишам**", message)
