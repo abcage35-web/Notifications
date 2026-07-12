@@ -87,7 +87,7 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("**♾️ ВСЕСЕЗОННЫЕ**", summary_message)
         self.assertIn(
             "@a.beaver\n**♾️ ВСЕСЕЗОННЫЕ**\n"
-            "• Массажеры электрические · 1 SKU\n"
+            "• **Массажеры электрические · 1 SKU**\n"
             "• • `Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
             "`🔄 Оборачиваемость 713,3 дн.`",
             summary_message,
