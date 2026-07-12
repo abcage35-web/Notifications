@@ -99,9 +99,10 @@ def create_thread(token, message_id):
     payload = response.json()
     data = payload.get("data", payload)
     thread_id = data.get("id")
-    if not thread_id:
-        raise RuntimeError("Pachca did not return a thread id")
-    return thread_id
+    thread_chat_id = data.get("chat_id")
+    if not thread_id or not thread_chat_id:
+        raise RuntimeError("Pachca did not return thread identifiers")
+    return {"id": thread_id, "chat_id": thread_chat_id}
 
 
 def main():
@@ -116,15 +117,16 @@ def main():
     file_payload = upload_file(token, md_path)
     content = message_path.read_text(encoding="utf-8").strip()
     message_id = send_message(token, "discussion", chat_id, content, [file_payload])
-    thread_id = create_thread(token, message_id)
+    thread = create_thread(token, message_id)
     thread_content = thread_message_path.read_text(encoding="utf-8").strip()
-    thread_message_id = send_message(token, "discussion", thread_id, thread_content)
+    thread_message_id = send_message(token, "thread", thread["id"], thread_content)
 
     print(
         json.dumps(
             {
                 "message_id": message_id,
-                "thread_id": thread_id,
+                "thread_id": thread["id"],
+                "thread_chat_id": thread["chat_id"],
                 "thread_message_id": thread_message_id,
                 "md": str(md_path),
                 "message": str(message_path),
