@@ -3,7 +3,11 @@ import unittest
 from datetime import date
 from decimal import Decimal
 
-from build_wb_articles_marketer_report import build_niche_message, build_niche_summaries
+from build_wb_articles_marketer_report import (
+    build_niche_detail_message,
+    build_niche_summaries,
+    build_niche_summary_message,
+)
 
 
 def row(day, sku, revenue, spend, orders, *, plan_rub, plan_qty, planned_drr, category="Массажеры электрические"):
@@ -67,31 +71,42 @@ class NicheReportTest(unittest.TestCase):
             row(10, 101, 9_000_000, 720_000, 90, plan_rub=31_000_000, plan_qty=310, planned_drr=8),
         ]
 
-        message = build_niche_message(rows, date(2026, 7, 10), {"Массажеры электрические": 6420})
+        summary_message = build_niche_summary_message(
+            rows,
+            date(2026, 7, 10),
+            {"Массажеры электрические": 6420},
+        )
+        detail_message = build_niche_detail_message(
+            rows,
+            date(2026, 7, 10),
+            {"Массажеры электрические": 6420},
+        )
 
-        self.assertIn("**Сводная по маркетологам**", message)
-        self.assertIn("**♾️ ВСЕСЕЗОННЫЕ**", message)
+        self.assertIn("**Сводная по маркетологам**", summary_message)
+        self.assertNotIn("**Детализация по нишам**", summary_message)
+        self.assertIn("**♾️ ВСЕСЕЗОННЫЕ**", summary_message)
         self.assertIn(
             "@a.beaver\n**♾️ ВСЕСЕЗОННЫЕ**\n"
             "• Массажеры электрические · 1 SKU\n"
             "• • `Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
             "`🔄 Оборачиваемость 713,3 дн.`",
-            message,
+            summary_message,
         )
-        self.assertIn("**Детализация по нишам**", message)
-        self.assertIn("**Массажеры электрические · ♾️ Всесезонная · 1 SKU** · @a.beaver", message)
-        self.assertIn("`Выручка 🟢` · `ДРР 🟢` · `💸 Доля трат 100,0%`", message)
-        self.assertIn("💰 Выручка `90,0%` — `9,0 / 10,0 млн ₽`", message)
-        self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", message)
-        self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", message)
-        self.assertIn("📦 FBO `6 420 шт.` — `713,3 дн.`", message)
+        self.assertIn("**Детализация по нишам**", detail_message)
+        self.assertNotIn("**Сводная по маркетологам**", detail_message)
+        self.assertIn("**Массажеры электрические · ♾️ Всесезонная · 1 SKU** · @a.beaver", detail_message)
+        self.assertIn("`Выручка 🟢` · `ДРР 🟢` · `💸 Доля трат 100,0%`", detail_message)
+        self.assertIn("💰 Выручка `90,0%` — `9,0 / 10,0 млн ₽`", detail_message)
+        self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", detail_message)
+        self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", detail_message)
+        self.assertIn("📦 FBO `6 420 шт.` — `713,3 дн.`", detail_message)
 
     def test_status_matches_the_displayed_one_decimal_values(self):
         rows = [
             row(10, 101, 9_000_000, 651_600, 90, plan_rub=31_000_000, plan_qty=310, planned_drr=7.2),
         ]
 
-        message = build_niche_message(rows, date(2026, 7, 10))
+        message = build_niche_detail_message(rows, date(2026, 7, 10))
 
         self.assertIn("`ДРР 🟢`", message)
         self.assertIn("🎯 ДРР `7,2% / 7,2%`", message)

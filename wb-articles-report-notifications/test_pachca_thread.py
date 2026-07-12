@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import unittest
 import importlib.util
+import io
+import tempfile
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -14,6 +17,48 @@ send_message = SEND_MODULE.send_message
 
 
 class PachcaThreadTest(unittest.TestCase):
+    @patch.object(SEND_MODULE, "create_thread")
+    @patch.object(SEND_MODULE, "send_message")
+    @patch.object(SEND_MODULE, "upload_file")
+    @patch.object(SEND_MODULE, "build_report")
+    @patch.object(SEND_MODULE, "required_env")
+    def test_main_sends_two_root_messages_and_details_in_summary_thread(
+        self,
+        required_env,
+        build_report,
+        upload_file,
+        send_message,
+        create_thread,
+    ):
+        required_env.side_effect = ["token", "42"]
+        send_message.side_effect = [111, 222, 333]
+        create_thread.return_value = {"id": 456, "chat_id": 654}
+        upload_file.return_value = {"key": "report", "name": "report.md", "file_type": "file", "size": 1}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            md_path = temp / "report.md"
+            root_path = temp / "root.md"
+            niche_path = temp / "niches.md"
+            detail_path = temp / "details.md"
+            md_path.write_text("file", encoding="utf-8")
+            root_path.write_text("root", encoding="utf-8")
+            niche_path.write_text("summary", encoding="utf-8")
+            detail_path.write_text("details", encoding="utf-8")
+            build_report.return_value = {
+                "md": str(md_path),
+                "message": str(root_path),
+                "niche_message": str(niche_path),
+                "niche_thread_message": str(detail_path),
+            }
+
+            with redirect_stdout(io.StringIO()):
+                SEND_MODULE.main()
+
+        self.assertEqual(send_message.call_args_list[0].args[:4], ("token", "discussion", "42", "root"))
+        self.assertEqual(send_message.call_args_list[1].args, ("token", "discussion", "42", "summary"))
+        create_thread.assert_called_once_with("token", 222)
+        self.assertEqual(send_message.call_args_list[2].args, ("token", "thread", 456, "details"))
+
     @patch.object(SEND_MODULE.requests, "post")
     def test_root_message_keeps_attachment(self, post):
         response = Mock()

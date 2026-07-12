@@ -112,25 +112,30 @@ def main():
 
     md_path = Path(report["md"])
     message_path = Path(report["message"])
-    thread_message_path = Path(report["thread_message"])
+    niche_message_path = Path(report["niche_message"])
+    niche_thread_message_path = Path(report["niche_thread_message"])
 
     file_payload = upload_file(token, md_path)
     content = message_path.read_text(encoding="utf-8").strip()
     message_id = send_message(token, "discussion", chat_id, content, [file_payload])
-    thread = create_thread(token, message_id)
-    thread_content = thread_message_path.read_text(encoding="utf-8").strip()
+    niche_content = niche_message_path.read_text(encoding="utf-8").strip()
+    niche_message_id = send_message(token, "discussion", chat_id, niche_content)
+    thread = create_thread(token, niche_message_id)
+    thread_content = niche_thread_message_path.read_text(encoding="utf-8").strip()
     thread_message_id = send_message(token, "thread", thread["id"], thread_content)
 
     print(
         json.dumps(
             {
                 "message_id": message_id,
+                "niche_message_id": niche_message_id,
                 "thread_id": thread["id"],
                 "thread_chat_id": thread["chat_id"],
                 "thread_message_id": thread_message_id,
                 "md": str(md_path),
                 "message": str(message_path),
-                "thread_message": str(thread_message_path),
+                "niche_message": str(niche_message_path),
+                "niche_thread_message": str(niche_thread_message_path),
                 "rows": report.get("rows"),
                 "skus": report.get("skus"),
                 "cabinets": report.get("cabinets"),

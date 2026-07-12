@@ -1144,7 +1144,7 @@ def append_marketer_summary(lines, summaries):
                 )
 
 
-def build_niche_message(rows, date_to: date, stock_by_category=None):
+def build_niche_summary_message(rows, date_to: date, stock_by_category=None):
     current_month_from = month_start(date_to)
     summaries = build_niche_summaries(rows, date_to, stock_by_category)
     lines = [
@@ -1157,7 +1157,20 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
         return "\n".join(lines)
 
     append_marketer_summary(lines, summaries)
-    lines.extend(["", "**Детализация по нишам**"])
+    return "\n".join(lines)
+
+
+def build_niche_detail_message(rows, date_to: date, stock_by_category=None):
+    current_month_from = month_start(date_to)
+    summaries = build_niche_summaries(rows, date_to, stock_by_category)
+    lines = [
+        "**Детализация по нишам**",
+        f"`{fmt_date(current_month_from)}–{fmt_date(date_to)} · факт / план`",
+    ]
+    if not summaries:
+        lines.extend(["", "Нет данных за текущий месяц."])
+        return "\n".join(lines)
+
     for summary in summaries:
         revenue_emoji, drr_emoji = niche_statuses(summary)
         lines.extend(
@@ -1342,13 +1355,18 @@ def main():
     report_name = f"wb_articles_marketer_metrics_30d_{date_from.isoformat()}_{date_to.isoformat()}"
     md_path = out_dir / f"{report_name}.md"
     message_path = out_dir / f"{report_name}_message.md"
-    thread_message_path = out_dir / f"{report_name}_thread.md"
+    niche_message_path = out_dir / f"{report_name}_niches.md"
+    niche_thread_message_path = out_dir / f"{report_name}_niches_thread.md"
     summary_path = out_dir / f"{report_name}.json"
 
     md_path.write_text(build_markdown(output_rows, date_from, date_to, stock_date, calculation_from), encoding="utf-8")
     message_path.write_text(build_message(calculation_rows, date_from, date_to), encoding="utf-8")
-    thread_message_path.write_text(
-        build_niche_message(calculation_rows, date_to, niche_stocks),
+    niche_message_path.write_text(
+        build_niche_summary_message(calculation_rows, date_to, niche_stocks),
+        encoding="utf-8",
+    )
+    niche_thread_message_path.write_text(
+        build_niche_detail_message(calculation_rows, date_to, niche_stocks),
         encoding="utf-8",
     )
 
@@ -1357,7 +1375,8 @@ def main():
         {
             "md": str(md_path),
             "message": str(message_path),
-            "thread_message": str(thread_message_path),
+            "niche_message": str(niche_message_path),
+            "niche_thread_message": str(niche_thread_message_path),
             "niches": len(build_niche_summaries(calculation_rows, date_to, niche_stocks)),
             "summary_json": str(summary_path),
         }
