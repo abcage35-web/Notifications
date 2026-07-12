@@ -1043,6 +1043,43 @@ def status_emoji(value, predicate):
     return "🟢" if predicate(value) else "🔴"
 
 
+def niche_statuses(summary):
+    revenue_emoji = status_emoji(
+        rounded_one(summary["revenue_completion"]),
+        lambda value: value >= Decimal("90"),
+    )
+    if summary["actual_drr"] is None or summary["planned_drr"] is None:
+        drr_emoji = "⚪"
+    else:
+        drr_emoji = (
+            "🟢"
+            if rounded_one(summary["actual_drr"]) <= rounded_one(summary["planned_drr"])
+            else "🔴"
+        )
+    return revenue_emoji, drr_emoji
+
+
+def append_marketer_summary(lines, summaries):
+    by_marketer = defaultdict(list)
+    for summary in summaries:
+        by_marketer[summary["marketer"]].append(summary)
+
+    lines.extend(["", "**Сводная по маркетологам**"])
+    marketer_groups = sorted(
+        by_marketer.items(),
+        key=lambda item: (-sum((summary["spend"] for summary in item[1]), Decimal("0")), item[0]),
+    )
+    for marketer, marketer_summaries in marketer_groups:
+        lines.extend(["", marketer])
+        for summary in marketer_summaries:
+            revenue_emoji, drr_emoji = niche_statuses(summary)
+            lines.append(
+                f"**{md_cell(summary['category'])} · {summary['active_skus']} SKU** · "
+                f"Выручка {revenue_emoji} · ДРР {drr_emoji} · "
+                f"💸 {fmt_percent_one(summary['spend_share'])} общих трат"
+            )
+
+
 def build_niche_message(rows, date_to: date, stock_by_category=None):
     current_month_from = month_start(date_to)
     summaries = build_niche_summaries(rows, date_to, stock_by_category)
@@ -1055,19 +1092,10 @@ def build_niche_message(rows, date_to: date, stock_by_category=None):
         lines.extend(["", "Нет данных за текущий месяц."])
         return "\n".join(lines)
 
+    append_marketer_summary(lines, summaries)
+    lines.extend(["", "**Детализация по нишам**"])
     for summary in summaries:
-        revenue_emoji = status_emoji(
-            rounded_one(summary["revenue_completion"]),
-            lambda value: value >= Decimal("90"),
-        )
-        if summary["actual_drr"] is None or summary["planned_drr"] is None:
-            drr_emoji = "⚪"
-        else:
-            drr_emoji = (
-                "🟢"
-                if rounded_one(summary["actual_drr"]) <= rounded_one(summary["planned_drr"])
-                else "🔴"
-            )
+        revenue_emoji, drr_emoji = niche_statuses(summary)
         lines.extend(
             [
                 "",

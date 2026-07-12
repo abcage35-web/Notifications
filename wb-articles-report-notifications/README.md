@@ -19,6 +19,7 @@ Daily WB article-level marketer report for Pachca.
 - The niche thread covers MTD revenue/plan, DRR fact/plan, RK spend, orders fact/plan, current FBO and active SKU count.
 - Active niche SKU means MTD finance revenue above 5,000 RUB or MTD RK spend above 5,000 RUB.
 - Niches with zero active SKU are omitted from the thread report.
+- The thread starts with a marketer-grouped niche summary and continues with detailed niche metrics.
 - Revenue and order plans are prorated through the report date; green revenue status starts at 90% completion, and green DRR means fact is not above plan.
 
 Generated report files are ignored by git.
