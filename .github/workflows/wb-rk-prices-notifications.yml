@@ -40,6 +40,10 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r wb-fbo-supply-notifications/requirements.txt -r wb-action-notifications/requirements.txt
 
+      - name: Test stock snapshot and Pachca send guards
+        working-directory: wb-action-notifications
+        run: python -m unittest -v test_stock_snapshot_guard.py
+
       - name: Send FBO supply report
         working-directory: wb-fbo-supply-notifications
         env:

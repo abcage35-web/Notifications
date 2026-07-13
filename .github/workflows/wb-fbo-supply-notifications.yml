@@ -40,6 +40,10 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r requirements.txt
 
+      - name: Test stock snapshot guard
+        working-directory: wb-action-notifications
+        run: python -m unittest -v test_stock_snapshot_guard.StockSnapshotGuardTest
+
       - name: Build and send Pachca report
         run: python send_pachca_report.py
 

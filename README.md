@@ -54,6 +54,8 @@ Pachca API message + files + optional thread
 
 The Cloudflare Workers do not calculate report data. They only dispatch the correct GitHub Actions workflow. Business logic stays in the bot folders.
 
+WB action and FBO reports validate the WB stock snapshot before building output. Empty, stale, or sharply incomplete snapshots stop the workflow or fall back to the previous valid day; action reports with zero actions are not sent to Pachca.
+
 ## Secrets
 
 Secrets are not committed. The active bots use:

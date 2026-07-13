@@ -145,13 +145,16 @@ gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --repo abcage35-web/Notifications < /p
 
 - `mp.mp_core__realtime_stocks_data`
 
-Берется последняя доступная дата:
+Берется последний валидный WB-срез не старше одного дня. Всегда применяется фильтр `mp = 'wb'`. Пустой или аномально неполный свежий срез заменяется предыдущим валидным днем:
 
 ```sql
-date = (SELECT MAX(date) FROM mp.mp_core__realtime_stocks_data)
+SUM(fbo_real) > 0
+positive_skus > 0
 ```
 
 Остаток: сумма `fbo_real` по WB артикулу.
+
+Порог аномального падения задают `WB_STOCK_MIN_FBO_RATIO=0.2` и `WB_STOCK_MIN_POSITIVE_SKU_RATIO=0.5`. Максимальный возраст fallback-среза задает `WB_STOCK_MAX_AGE_DAYS=1`.
 
 ### 5. РК, статусы и траты
 
@@ -586,6 +589,8 @@ pachca_fbo_supplies_sheet_YYYY-MM-DD.md
 Не добавлять визуальные вертикальные разделители через отдельные `|`-колонки: в Пачке это ломает предпросмотр и делает таблицу слишком широкой.
 
 ## Проверки перед отправкой
+
+Общие FBO helpers обязаны использовать `load_valid_wb_stock_snapshot()`: прямой `MAX(date)` без `mp='wb'` и проверки наполненности запрещен.
 
 Минимальный локальный тест:
 

@@ -83,6 +83,22 @@ def main():
     chat_id = required_env("PACHCA_CHAT_ID")
     report = build_report()
 
+    if int(report.get("items") or 0) == 0:
+        print(
+            json.dumps(
+                {
+                    "status": "skipped",
+                    "reason": "no_actions",
+                    "items": 0,
+                    "base_items": report.get("base_items"),
+                    "stock_snapshot": report.get("stock_snapshot"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+
     md_path = Path(report["md"])
     message_path = Path(report["message"])
 
@@ -106,4 +122,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

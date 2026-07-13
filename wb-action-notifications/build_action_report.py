@@ -114,12 +114,14 @@ def pachca_message_text(lines):
 
 
 def load_base_rows(db):
+    stock_snapshot = fbo.load_valid_wb_stock_snapshot(db, START)
     rows = db.query(
-        """
+        f"""
         WITH latest_stocks AS (
             SELECT CAST(sku AS CHAR) AS sku, SUM(fbo_real) AS fbo_current
             FROM mp.mp_core__realtime_stocks_data
-            WHERE date = (SELECT MAX(date) FROM mp.mp_core__realtime_stocks_data)
+            WHERE mp = 'wb'
+              AND date = '{stock_snapshot['date'].isoformat()}'
             GROUP BY sku
         )
         SELECT CAST(card.sku AS CHAR) AS sku,
@@ -133,7 +135,7 @@ def load_base_rows(db):
         HAVING fbo > 0;
         """
     )
-    return {
+    items = {
         str(row["sku"]): {
             "article": str(row["sku"]),
             "name": row.get("name") or "-",
@@ -142,6 +144,12 @@ def load_base_rows(db):
         }
         for row in rows
     }
+    if not items:
+        raise RuntimeError(
+            "Валидный срез остатков WB выбран, но после сопоставления с карточками нет товаров"
+        )
+    stock_snapshot = {**stock_snapshot, "matched_articles": len(items)}
+    return items, stock_snapshot
 
 
 def load_ad_spend_3d_excluding_today(db, articles):
@@ -244,7 +252,7 @@ def load_nearest_supplies():
 def enrich_items():
     db = McpSql()
     try:
-        items = load_base_rows(db)
+        items, stock_snapshot = load_base_rows(db)
         articles = set(items)
         rk_by_article = fbo.load_rk_by_article(db, articles)
         ad_spend_by_article = fbo.load_ad_spend_by_article(db, articles)
@@ -294,7 +302,7 @@ def enrich_items():
             float(info["ad_spend_3d_excl_today"] or 0) / revenue_3d * 100 if revenue_3d > 0 else 0
         )
 
-    return items
+    return items, stock_snapshot
 
 
 def has_action_stock(info):
@@ -456,13 +464,25 @@ def build_segments(items):
     return [(key, title, segment_sort(key, rows)) for key, title, rows in segments]
 
 
-def build_outputs(items):
+def build_outputs(items, stock_snapshot):
     segments = build_segments(items)
-    message_lines = [f"**ПРЕДУСТАНОВЛЕННЫЕ ДЕЙСТВИЯ WB (отчет {REPORT_RUN_LABEL})**", ""]
+    stock_date_label = stock_snapshot["date"].strftime("%d.%m.%Y")
+    fallback_label = "; использован последний валидный срез" if stock_snapshot.get("fallback_used") else ""
+    stock_source_line = (
+        f"_Остатки FBO на {stock_date_label}: {stock_snapshot['total_fbo']:,} шт."
+        f"{fallback_label}._"
+    ).replace(",", " ")
+    message_lines = [
+        f"**ПРЕДУСТАНОВЛЕННЫЕ ДЕЙСТВИЯ WB (отчет {REPORT_RUN_LABEL})**",
+        "",
+        stock_source_line,
+        "",
+    ]
     md_lines = [
         "# Действия WB",
         "",
         f"_Отчет сформирован: {START.strftime('%d.%m.%Y')}. Тестовый проект: `/действия_уведомление`._",
+        stock_source_line,
         "",
         "## Условия",
         "",
@@ -516,6 +536,7 @@ def build_outputs(items):
             {
                 "items": list(items.values()),
                 "segments": {key: len(rows) for key, _, rows in segments},
+                "stock_snapshot": stock_snapshot,
                 "message": rendered_message,
             },
             ensure_ascii=False,
@@ -530,13 +551,15 @@ def build_outputs(items):
         "message": str(out_message),
         "json": str(out_json),
         "items": total_action_rows,
+        "base_items": len(items),
         "segments": {key: len(rows) for key, _, rows in segments},
+        "stock_snapshot": stock_snapshot,
     }
 
 
 def main():
-    items = enrich_items()
-    print(json.dumps(build_outputs(items), ensure_ascii=False, indent=2))
+    items, stock_snapshot = enrich_items()
+    print(json.dumps(build_outputs(items, stock_snapshot), ensure_ascii=False, indent=2, default=str))
 
 
 if __name__ == "__main__":

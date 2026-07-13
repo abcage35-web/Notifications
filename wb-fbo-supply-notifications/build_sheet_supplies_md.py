@@ -20,6 +20,10 @@ START = datetime.now(REPORT_TZ).date()
 STRICT_SOURCE_LOADING = os.getenv("STRICT_SOURCE_LOADING", "1") != "0"
 REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "08:00 по МСК")
 ACTION_MIN_FBO = int(os.getenv("ACTION_MIN_FBO", "50"))
+STOCK_LOOKBACK_DAYS = int(os.getenv("WB_STOCK_LOOKBACK_DAYS", "7"))
+STOCK_MAX_AGE_DAYS = int(os.getenv("WB_STOCK_MAX_AGE_DAYS", "1"))
+STOCK_MIN_FBO_RATIO = float(os.getenv("WB_STOCK_MIN_FBO_RATIO", "0.2"))
+STOCK_MIN_POSITIVE_SKU_RATIO = float(os.getenv("WB_STOCK_MIN_POSITIVE_SKU_RATIO", "0.5"))
 MARKETER_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/"
     "1STPnPgj8xSrvN-F3K96bDj_pmunCICHTjaj358pRaB4"
@@ -68,6 +72,81 @@ MARKETER_BY_ARTICLE = {
 }
 
 PACHCA_MENTION_CACHE = {}
+
+
+def parse_db_date(value):
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+
+
+def choose_wb_stock_snapshot(stock_days, report_date=None):
+    """Choose a fresh, non-empty WB stock snapshot and reject broken loads."""
+    report_date = report_date or START
+    normalized = []
+    for raw in stock_days:
+        normalized.append(
+            {
+                "date": parse_db_date(raw["date"]),
+                "total_fbo": int(float(raw.get("total_fbo") or 0)),
+                "positive_skus": int(raw.get("positive_skus") or 0),
+            }
+        )
+    normalized.sort(key=lambda row: row["date"], reverse=True)
+    if not normalized:
+        raise RuntimeError("Нет срезов остатков WB за проверяемый период")
+
+    latest = normalized[0]
+    valid = [row for row in normalized if row["total_fbo"] > 0 and row["positive_skus"] > 0]
+    if not valid:
+        raise RuntimeError("Все доступные срезы остатков WB пустые")
+
+    selected = valid[0]
+    fallback_reason = None
+    if latest["total_fbo"] <= 0 or latest["positive_skus"] <= 0:
+        fallback_reason = "latest_snapshot_empty"
+    elif len(valid) > 1 and selected is latest:
+        previous = valid[1]
+        fbo_ratio = selected["total_fbo"] / previous["total_fbo"]
+        sku_ratio = selected["positive_skus"] / previous["positive_skus"]
+        if fbo_ratio < STOCK_MIN_FBO_RATIO or sku_ratio < STOCK_MIN_POSITIVE_SKU_RATIO:
+            selected = previous
+            fallback_reason = "latest_snapshot_anomalous_drop"
+
+    age_days = (report_date - selected["date"]).days
+    if age_days < 0 or age_days > STOCK_MAX_AGE_DAYS:
+        raise RuntimeError(
+            "Нет свежего валидного среза остатков WB: "
+            f"выбранная дата {selected['date'].isoformat()}, возраст {age_days} д."
+        )
+
+    return {
+        **selected,
+        "latest_date": latest["date"],
+        "fallback_used": selected["date"] != latest["date"],
+        "fallback_reason": fallback_reason,
+        "age_days": age_days,
+    }
+
+
+def load_valid_wb_stock_snapshot(db, report_date=None):
+    report_date = report_date or START
+    stock_days = db.query(
+        f"""
+        SELECT date,
+               SUM(COALESCE(fbo_real, 0)) AS total_fbo,
+               COUNT(DISTINCT CASE WHEN COALESCE(fbo_real, 0) > 0 THEN sku END) AS positive_skus
+        FROM mp.mp_core__realtime_stocks_data
+        WHERE mp = 'wb'
+          AND date >= DATE('{report_date.isoformat()}') - INTERVAL {STOCK_LOOKBACK_DAYS} DAY
+          AND date <= DATE('{report_date.isoformat()}')
+        GROUP BY date
+        ORDER BY date DESC;
+        """
+    )
+    return choose_wb_stock_snapshot(stock_days, report_date)
 
 
 def resolve_pachca_user_mention(query, fallback):
@@ -579,11 +658,13 @@ def main():
         stock_skus.update(parsed_articles)
         stock_num_sql = ",".join(sorted(s for s in stock_skus if s.isdigit()))
         if stock_num_sql:
+            stock_snapshot = load_valid_wb_stock_snapshot(db)
             stock_rows = db.query(
                 f"""
                 SELECT CAST(sku AS CHAR) AS sku, SUM(fbo_real) AS fbo_current
                 FROM mp.mp_core__realtime_stocks_data
-                WHERE date = (SELECT MAX(date) FROM mp.mp_core__realtime_stocks_data)
+                WHERE mp = 'wb'
+                  AND date = '{stock_snapshot['date'].isoformat()}'
                   AND CAST(sku AS UNSIGNED) IN ({stock_num_sql})
                 GROUP BY sku;
                 """

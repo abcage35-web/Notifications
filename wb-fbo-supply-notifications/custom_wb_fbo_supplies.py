@@ -243,7 +243,17 @@ def main():
             """
             SELECT sku, SUM(fbo_real) AS fbo_current
             FROM mp.mp_core__realtime_stocks_data
-            WHERE date = (SELECT MAX(date) FROM mp.mp_core__realtime_stocks_data)
+            WHERE mp = 'wb'
+              AND date = (
+                  SELECT MAX(date)
+                  FROM (
+                      SELECT date
+                      FROM mp.mp_core__realtime_stocks_data
+                      WHERE mp = 'wb'
+                      GROUP BY date
+                      HAVING SUM(COALESCE(fbo_real, 0)) > 0
+                  ) valid_wb_stock_days
+              )
             GROUP BY sku;
             """
         )

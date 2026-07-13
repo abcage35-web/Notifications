@@ -100,6 +100,10 @@ GitHub Actions:
 - `SUPPLY_LOOKAHEAD_DAYS=30`
 - `SUPPLY_DISABLE_MIN_DAYS=5`
 - `CHECK_RK_EXCLUDED_CATEGORIES=Колготки`
+- `WB_STOCK_LOOKBACK_DAYS=7`
+- `WB_STOCK_MAX_AGE_DAYS=1`
+- `WB_STOCK_MIN_FBO_RATIO=0.2`
+- `WB_STOCK_MIN_POSITIVE_SKU_RATIO=0.5`
 
 ## Источники данных
 
@@ -110,12 +114,18 @@ GitHub Actions:
 - `mp.mp_core__realtime_stocks_data`
 - `mp.wb_core__card`
 
-Условие:
+Условия и контроль качества:
 
 ```text
-последняя дата остатков
-и FBO > 0
+только mp='wb'
+последний валидный срез не старше одного дня
+общий FBO > 0 и есть SKU с положительным FBO
+при нулевом или аномально резком падении используется предыдущий валидный день
 ```
+
+Падение считается аномальным, если общий FBO меньше 20% предыдущего валидного дня или число SKU с положительным FBO меньше 50%. Если валидного среза нет или после join с `mp.wb_core__card` нет товаров, сборка завершается ошибкой до отправки.
+
+При валидных источниках и нуле действий `send_pachca_report.py` возвращает `status=skipped`, не загружает файл и не вызывает Pachca `/messages`.
 
 Поля:
 
