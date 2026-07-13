@@ -24,7 +24,7 @@ Cloudflare cron:
 ```text
 0 5 * * * - combined RK/prices reports, 08:00 MSK: FBO first, actions second
 30 5 * * 1 - XWAY bidder limit report, Monday 08:30 MSK
-0 6 * * * - WB articles report, 09:00 MSK
+20 5 * * * - WB articles report, 09:20 Tbilisi
 ```
 
 ## Secrets

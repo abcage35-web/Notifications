@@ -14,6 +14,7 @@ SEND_MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SEND_MODULE)
 create_thread = SEND_MODULE.create_thread
 send_message = SEND_MODULE.send_message
+split_markdown_messages = SEND_MODULE.split_markdown_messages
 
 
 class PachcaThreadTest(unittest.TestCase):
@@ -33,7 +34,10 @@ class PachcaThreadTest(unittest.TestCase):
         required_env.side_effect = ["token", "42"]
         send_message.side_effect = [111, 222, 333]
         create_thread.return_value = {"id": 456, "chat_id": 654}
-        upload_file.return_value = {"key": "report", "name": "report.md", "file_type": "file", "size": 1}
+        upload_file.side_effect = [
+            {"key": "report", "name": "report.md", "file_type": "file", "size": 1},
+            {"key": "niches", "name": "details.md", "file_type": "file", "size": 1},
+        ]
         with tempfile.TemporaryDirectory() as temp_dir:
             temp = Path(temp_dir)
             md_path = temp / "report.md"
@@ -55,9 +59,19 @@ class PachcaThreadTest(unittest.TestCase):
                 SEND_MODULE.main()
 
         self.assertEqual(send_message.call_args_list[0].args[:4], ("token", "discussion", "42", "root"))
-        self.assertEqual(send_message.call_args_list[1].args, ("token", "discussion", "42", "summary"))
+        self.assertEqual(send_message.call_args_list[1].args[:4], ("token", "discussion", "42", "summary"))
+        self.assertEqual(send_message.call_args_list[1].args[4][0]["key"], "niches")
         create_thread.assert_called_once_with("token", 222)
         self.assertEqual(send_message.call_args_list[2].args, ("token", "thread", 456, "details"))
+
+    def test_long_niche_report_is_split_below_pachca_limit(self):
+        content = "\n\n".join(["**Ниша**\n" + "x" * 9_000 for _ in range(6)])
+
+        chunks = split_markdown_messages(content, limit=20_000)
+
+        self.assertGreater(len(chunks), 1)
+        self.assertEqual("\n\n".join(chunks), content)
+        self.assertTrue(all(len(chunk) <= 20_000 for chunk in chunks))
 
     @patch.object(SEND_MODULE.requests, "post")
     def test_root_message_keeps_attachment(self, post):
