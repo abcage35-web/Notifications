@@ -10,7 +10,7 @@ on:
       report_run_label:
         description: "Optional label shown in the Pachca report title"
         required: false
-        default: "09:20 по Тбилиси"
+        default: "09:00 по МСК"
         type: string
       report_date_from:
         description: "Optional report start date YYYY-MM-DD"
@@ -45,12 +45,12 @@ jobs:
       run:
         working-directory: wb-articles-report-notifications
     env:
-      REPORT_TZ: Asia/Tbilisi
+      REPORT_TZ: Europe/Moscow
       ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}
       PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_REPORT || '39531378' }}
-      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '09:20 по Тбилиси' }}
+      REPORT_RUN_LABEL: ${{ inputs.report_run_label || '09:00 по МСК' }}
       REPORT_DATE_FROM: ${{ inputs.report_date_from }}
       REPORT_DATE_TO: ${{ inputs.report_date_to }}
       REPORT_STOCK_DATE: ${{ inputs.report_stock_date }}

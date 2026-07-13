@@ -16,13 +16,12 @@ ROOT = Path(__file__).resolve().parent
 FBO_ROOT = ROOT.parent / "wb-fbo-supply-notifications"
 sys.path.insert(0, str(FBO_ROOT))
 
-from build_sheet_supplies_md import load_marketer_by_article, load_valid_wb_stock_snapshot  # noqa: E402
+from build_sheet_supplies_md import load_marketer_by_article  # noqa: E402
 from custom_wb_fbo_supplies import McpSql  # noqa: E402
-from niche_action_analytics import enrich_niche_priorities, load_product_analytics  # noqa: E402
 
 
-REPORT_TZ = ZoneInfo(os.getenv("REPORT_TZ", "Asia/Tbilisi"))
-REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:20 по Тбилиси")
+REPORT_TZ = ZoneInfo(os.getenv("REPORT_TZ", "Europe/Moscow"))
+REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
 REVENUE_KEY = "finance_revenue"
@@ -1084,7 +1083,6 @@ def build_niche_summaries(rows, date_to: date, stock_by_category=None):
                     dec(stock_by_category.get(category)),
                     orders / Decimal(date_to.day) if orders else Decimal("0"),
                 ),
-                "covered_days": date_to.day,
             }
         )
 
@@ -1146,135 +1144,7 @@ def append_marketer_summary(lines, summaries):
                 )
 
 
-def append_priority_summary(lines, summaries):
-    counts = defaultdict(int)
-    for summary in summaries:
-        counts[summary["priority"]["code"]] += 1
-    lines.extend(
-        [
-            "",
-            "**Приоритет внимания**",
-            f"`P1 {counts['P1']}` · `P2 {counts['P2']}` · `P3 {counts['P3']}` · "
-            f"`Рост {counts['G']}` · `P4 {counts['P4']}`",
-        ]
-    )
-    labels = {
-        "P1": "P1 · критично",
-        "P2": "P2 · высокий",
-        "P3": "P3 · средний",
-        "G": "Рост",
-        "P4": "P4 · низкий",
-    }
-    for code in ("P1", "P2", "P3", "G", "P4"):
-        group = [summary for summary in summaries if summary["priority"]["code"] == code]
-        if not group:
-            continue
-        lines.append(f"**{labels[code]}**")
-        for summary in group:
-            lines.append(
-                f"• **{md_cell(summary['category'])} · {summary['active_skus']} SKU** · {summary['marketer']}"
-            )
-            lines.append(
-                f"• • `Выручка {fmt_percent_one(summary['revenue_completion'])}` · "
-                f"`ДРР {fmt_percent_one(summary['actual_drr'])} / {fmt_percent_one(summary['planned_drr'])}` · "
-                f"`Маржа после РК {fmt_percent_one(summary['margin_post_pct'])}` · "
-                f"`Сток с CRM {fmt_analysis_days(summary['future_stock_days'])}`"
-            )
-            lines.append(f"• • {summary['conclusion']}")
-
-
-def fmt_analysis_days(value):
-    if value is None:
-        return "—"
-    if dec(value) >= Decimal("9999"):
-        return ">999 дн."
-    return fmt_days(value)
-
-
-def fmt_position_fact(product):
-    source_date = product.get("position_source_date")
-    source_label = fmt_date(source_date) if source_date else "источник отсутствует"
-    if not product.get("positions_fresh"):
-        return f"позиции — нет актуальных данных ({source_label})"
-    positions = product.get("positions") or {}
-    if not positions:
-        return f"позиции — нет данных по SKU ({source_label})"
-    return (
-        f"позиции: поиск {fmt_one(positions.get('search_position'))}; "
-        f"реклама {fmt_one(positions.get('ad_position'))}; "
-        f"органика {fmt_one(positions.get('organic_position'))}; "
-        f"категория {fmt_one(positions.get('category_position'))}; "
-        f"медиана {fmt_one(positions.get('median_keyword_position'))}"
-    )
-
-
-def fmt_mechanics(product):
-    mechanics = []
-    for item in product.get("mechanics") or []:
-        drr = fmt_percent_one(item.get("drr"))
-        mechanics.append(
-            f"{item['mechanic']} {fmt_compact_value(item['spend'], currency=True)} / ДРР {drr}"
-        )
-    return "; ".join(mechanics) if mechanics else "РК: расход по механикам отсутствует"
-
-
-def fmt_product_price(product):
-    if not product.get("price_available"):
-        return "цена/СПП — нет актуальных данных"
-    return (
-        f"цена до СПП {fmt_rub(product['price_before_spp'])}; "
-        f"с СПП {fmt_rub(product['price_with_spp'])}; "
-        f"СПП {fmt_percent_one(product['spp_percent'])}"
-    )
-
-
-def fmt_product_margin(product):
-    if not product.get("margin_available"):
-        return "маржа — нет актуальных данных"
-    return (
-        f"маржа до/после РК {fmt_percent_one(product['margin_pre_pct'])} / "
-        f"{fmt_percent_one(product['margin_post_pct'])}"
-    )
-
-
-def fmt_product_reviews(product):
-    if not product.get("review_available"):
-        return "рейтинг/отзывы — нет актуальных данных"
-    return f"рейтинг {fmt_one(product['rating'])}, отзывы {fmt_int(product['reviews'])}"
-
-
-def append_product_actions(lines, products):
-    for product in products:
-        methods = ", ".join(product["methods"])
-        supply_fact = ""
-        if product["turnover_days"] is not None and product["turnover_days"] <= 5:
-            if not product["fbo_supply_checked"]:
-                supply_fact = " · Google FBO не проверен"
-            elif product["fbo_supply_confirmed"]:
-                supply_fact = (
-                    f" · поставка {product['fbo_supply_date']} / {fmt_int(product['fbo_supply_qty'])} шт."
-                )
-            else:
-                supply_fact = " · поставки Google в 5 дней нет"
-        lines.extend(
-            [
-                f"• **{product['sku']} · {product['priority']['code']}** · метод: `{methods}`",
-                f"• • `Выручка {fmt_percent_one(product['plan_pct'])}` · "
-                f"`ДРР {fmt_percent_one(product['drr'])} / {fmt_percent_one(product['drr_plan'])}` · "
-                f"`вчера расход {fmt_rub(product['yesterday_spend'])}, ДРР {fmt_percent_one(product['yesterday_drr'])}` · "
-                f"`FBO {fmt_int(product['fbo_stock'])} шт. / {fmt_analysis_days(product['turnover_days'])}`"
-                f"{supply_fact}",
-                f"• • `{fmt_product_price(product)}` · `{fmt_product_margin(product)}` · "
-                f"`{fmt_product_reviews(product)}`",
-                f"• • `{fmt_position_fact(product)}` · `CRM +{fmt_int(product['incoming_qty'])} шт. → "
-                f"{fmt_analysis_days(product['future_stock_days'])}`",
-                f"• • `{fmt_mechanics(product)}`",
-                f"• • **Проблема:** {product['issue']} → **Действие:** {product['action']}",
-            ]
-        )
-
-
-def build_niche_summary_message(rows, date_to: date, stock_by_category=None, analytics=None):
+def build_niche_summary_message(rows, date_to: date, stock_by_category=None):
     current_month_from = month_start(date_to)
     summaries = build_niche_summaries(rows, date_to, stock_by_category)
     lines = [
@@ -1286,18 +1156,11 @@ def build_niche_summary_message(rows, date_to: date, stock_by_category=None, ana
         lines.extend(["", "Нет данных за текущий месяц."])
         return "\n".join(lines)
 
-    if analytics:
-        summaries = enrich_niche_priorities(summaries, analytics.get("products") or [])
-        append_priority_summary(lines, summaries)
-        if not analytics.get("positions_fresh"):
-            source_date = analytics.get("position_source_date")
-            label = fmt_date(source_date) if source_date else "источник отсутствует"
-            lines.extend(["", f"_Позиции: нет актуальных данных; последний источник — {label}._"])
-    append_marketer_summary(lines, sorted(summaries, key=lambda item: (-item["spend"], -item["revenue"], item["category"])))
+    append_marketer_summary(lines, summaries)
     return "\n".join(lines)
 
 
-def build_niche_detail_message(rows, date_to: date, stock_by_category=None, analytics=None):
+def build_niche_detail_message(rows, date_to: date, stock_by_category=None):
     current_month_from = month_start(date_to)
     summaries = build_niche_summaries(rows, date_to, stock_by_category)
     lines = [
@@ -1307,9 +1170,6 @@ def build_niche_detail_message(rows, date_to: date, stock_by_category=None, anal
     if not summaries:
         lines.extend(["", "Нет данных за текущий месяц."])
         return "\n".join(lines)
-
-    if analytics:
-        summaries = enrich_niche_priorities(summaries, analytics.get("products") or [])
 
     for summary in summaries:
         revenue_emoji, drr_emoji = niche_statuses(summary)
@@ -1330,19 +1190,6 @@ def build_niche_detail_message(rows, date_to: date, stock_by_category=None, anal
                 f"`{fmt_days(summary['turnover_days'])}`",
             ]
         )
-        if analytics:
-            lines.extend(
-                [
-                    f"• 💹 Маржа до/после РК "
-                    f"`{fmt_percent_one(summary['margin_pre_pct'])} / {fmt_percent_one(summary['margin_post_pct'])}`",
-                    f"• 🚚 CRM `+{fmt_int(summary['incoming_qty'])} шт.` — запас с приходом "
-                    f"`{fmt_analysis_days(summary['future_stock_days'])}`",
-                    f"• ⚠️ Приоритет `{summary['priority']['code']}` — {summary['conclusion']}",
-                    "",
-                    "**Действия по артикулам**",
-                ]
-            )
-            append_product_actions(lines, summary["products"])
     return "\n".join(lines)
 
 
@@ -1496,15 +1343,13 @@ def main():
     old_ip_by_sku = load_old_ip_by_sku(OLD_IP_REPORT_PATH)
     db = McpSql()
     try:
-        stock_snapshot = load_valid_wb_stock_snapshot(db, requested_stock_date)
-        stock_date = stock_snapshot["date"]
+        stock_date = resolve_stock_date(db, requested_stock_date)
         raw_rows = query_rows(db, calculation_from, date_to, stock_date)
         niche_stocks = query_niche_stocks(db, stock_date)
-        calculation_rows = enrich_rows(raw_rows, calculation_from, old_ip_by_sku)
-        niche_analytics = load_product_analytics(db, calculation_rows, date_to)
     finally:
         db.close()
 
+    calculation_rows = enrich_rows(raw_rows, calculation_from, old_ip_by_sku)
     output_rows = [row for row in calculation_rows if date_from <= row["date"] <= date_to]
 
     report_name = f"wb_articles_marketer_metrics_30d_{date_from.isoformat()}_{date_to.isoformat()}"
@@ -1517,11 +1362,11 @@ def main():
     md_path.write_text(build_markdown(output_rows, date_from, date_to, stock_date, calculation_from), encoding="utf-8")
     message_path.write_text(build_message(calculation_rows, date_from, date_to), encoding="utf-8")
     niche_message_path.write_text(
-        build_niche_summary_message(calculation_rows, date_to, niche_stocks, niche_analytics),
+        build_niche_summary_message(calculation_rows, date_to, niche_stocks),
         encoding="utf-8",
     )
     niche_thread_message_path.write_text(
-        build_niche_detail_message(calculation_rows, date_to, niche_stocks, niche_analytics),
+        build_niche_detail_message(calculation_rows, date_to, niche_stocks),
         encoding="utf-8",
     )
 
@@ -1533,8 +1378,6 @@ def main():
             "niche_message": str(niche_message_path),
             "niche_thread_message": str(niche_thread_message_path),
             "niches": len(build_niche_summaries(calculation_rows, date_to, niche_stocks)),
-            "niche_action_skus": len(niche_analytics.get("products") or []),
-            "positions_fresh": bool(niche_analytics.get("positions_fresh")),
             "summary_json": str(summary_path),
         }
     )

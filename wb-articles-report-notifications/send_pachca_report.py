@@ -11,7 +11,6 @@ import requests
 
 ROOT = Path(__file__).resolve().parent
 PACHCA_API_BASE = "https://api.pachca.com/api/shared/v1"
-PACHCA_MESSAGE_LIMIT = 38_000
 
 
 def required_env(name):
@@ -106,39 +105,6 @@ def create_thread(token, message_id):
     return {"id": thread_id, "chat_id": thread_chat_id}
 
 
-def split_markdown_messages(content, limit=PACHCA_MESSAGE_LIMIT):
-    content = str(content or "").strip()
-    if not content:
-        return []
-    if len(content) <= limit:
-        return [content]
-
-    chunks = []
-    current = ""
-    for block in content.split("\n\n"):
-        candidate = f"{current}\n\n{block}" if current else block
-        if len(candidate) <= limit:
-            current = candidate
-            continue
-        if current:
-            chunks.append(current)
-            current = ""
-        if len(block) <= limit:
-            current = block
-            continue
-        for line in block.splitlines():
-            candidate = f"{current}\n{line}" if current else line
-            if len(candidate) <= limit:
-                current = candidate
-            else:
-                if current:
-                    chunks.append(current)
-                current = line
-    if current:
-        chunks.append(current)
-    return chunks
-
-
 def main():
     token = required_env("PACHCA_TOKEN")
     chat_id = required_env("PACHCA_CHAT_ID")
@@ -150,18 +116,13 @@ def main():
     niche_thread_message_path = Path(report["niche_thread_message"])
 
     file_payload = upload_file(token, md_path)
-    niche_file_payload = upload_file(token, niche_thread_message_path)
     content = message_path.read_text(encoding="utf-8").strip()
     message_id = send_message(token, "discussion", chat_id, content, [file_payload])
     niche_content = niche_message_path.read_text(encoding="utf-8").strip()
-    niche_message_id = send_message(token, "discussion", chat_id, niche_content, [niche_file_payload])
+    niche_message_id = send_message(token, "discussion", chat_id, niche_content)
     thread = create_thread(token, niche_message_id)
     thread_content = niche_thread_message_path.read_text(encoding="utf-8").strip()
-    thread_message_ids = [
-        send_message(token, "thread", thread["id"], chunk)
-        for chunk in split_markdown_messages(thread_content)
-    ]
-    thread_message_id = thread_message_ids[0] if thread_message_ids else None
+    thread_message_id = send_message(token, "thread", thread["id"], thread_content)
 
     print(
         json.dumps(
@@ -171,7 +132,6 @@ def main():
                 "thread_id": thread["id"],
                 "thread_chat_id": thread["chat_id"],
                 "thread_message_id": thread_message_id,
-                "thread_message_ids": thread_message_ids,
                 "md": str(md_path),
                 "message": str(message_path),
                 "niche_message": str(niche_message_path),
