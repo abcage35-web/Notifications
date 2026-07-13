@@ -11,7 +11,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parent
 PACHCA_API_BASE = "https://api.pachca.com/api/shared/v1"
-PACHCA_MESSAGE_LIMIT = 18_000
+PACHCA_MESSAGE_LIMIT = 38_000
 
 
 def required_env(name):
@@ -82,10 +82,7 @@ def send_message(token, entity_type, entity_id, content, files=None):
         json=payload,
         timeout=30,
     )
-    if not response.ok:
-        raise RuntimeError(
-            f"Pachca message failed: HTTP {response.status_code}; {response.text[:1000]}"
-        )
+    response.raise_for_status()
     data = response.json()
     message_id = data.get("data", {}).get("id") or data.get("id")
     if not message_id:
