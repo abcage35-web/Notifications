@@ -143,7 +143,7 @@ Cron triggers из `wrangler.jsonc`:
 
 ```text
 0 5 * * * - общий workflow РК/цены: FBO, затем actions, 08:00 МСК
-30 5 * * 1 - XWAY bidder limits, каждый понедельник 08:30 МСК
+30 5 * * MON - XWAY bidder limits, каждый понедельник 08:30 МСК
 0 6 * * * - артикулярный отчет WB, 09:00 МСК
 ```
 

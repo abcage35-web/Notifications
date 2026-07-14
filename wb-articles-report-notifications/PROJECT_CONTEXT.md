@@ -42,7 +42,7 @@
 
 ## Источники данных
 
-- `mp.mp_core__realtime_stocks_data` - текущий FBO как справочная колонка, без фильтра по количеству.
+- `dbt.mp_core__fbo_warehouse_all` + `dbt.mp_core__card_all` - текущий FBO как справочная колонка и FBO по нишам, без фильтра по количеству.
 - `mp.wb_core__funnel` - открытия карточек, корзины, заказы WB, выручка WB, выкупы.
 - `mp.wb_core__campaign_stat_daily_sku` - показы, клики, корзины/заказы РК, траты РК.
 - `mp.wb_core__card` и `mp.vw_mp_core__card_all` - артикул, название, категория, юрлицо/IP.

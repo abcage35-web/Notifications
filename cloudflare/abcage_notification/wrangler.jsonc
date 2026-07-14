@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-05-22",
   "triggers": {
-    "crons": ["0 5 * * *", "30 5 * * 1", "0 6 * * *"]
+    "crons": ["0 5 * * *", "30 5 * * MON", "0 6 * * *"]
   },
   "vars": {
     "GITHUB_OWNER": "abcage35-web",

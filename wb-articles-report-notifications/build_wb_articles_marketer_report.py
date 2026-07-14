@@ -418,14 +418,17 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
     plan_to = month_start(date_to)
     sql = f"""
     WITH current_stock AS (
-        SELECT CAST(stock.sku AS UNSIGNED) AS sku_num,
-               stock.account_id,
-               SUM(COALESCE(stock.fbo_real, 0)) AS current_stock
-        FROM mp.mp_core__realtime_stocks_data stock
-        WHERE stock.date = '{stock_date.isoformat()}'
-          AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
-          AND stock.sku REGEXP '^[0-9]+$'
-        GROUP BY sku_num, stock.account_id
+        SELECT CAST(fbo.sku AS UNSIGNED) AS sku_num,
+               card_all.account_id,
+               SUM(COALESCE(fbo.fbo, 0)) AS current_stock
+        FROM dbt.mp_core__fbo_warehouse_all fbo
+        JOIN dbt.mp_core__card_all card_all
+          ON card_all.mp COLLATE utf8mb4_unicode_ci = fbo.mp COLLATE utf8mb4_unicode_ci
+         AND card_all.card_id = fbo.card_id
+         AND card_all.sku = fbo.sku
+        WHERE fbo.date = '{stock_date.isoformat()}'
+          AND fbo.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+        GROUP BY sku_num, card_all.account_id
     ),
     daily_keys AS (
         SELECT DISTINCT s.date_at, s.account_id, CAST(s.sku AS UNSIGNED) AS sku_num
@@ -603,10 +606,15 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
 
 def resolve_stock_date(db: McpSql, requested_stock_date: date) -> date:
     sql = f"""
-    SELECT MAX(stock.date) AS stock_date
-    FROM mp.mp_core__realtime_stocks_data stock
-    WHERE stock.date <= '{requested_stock_date.isoformat()}'
-      AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+    SELECT MAX(stock_date) AS stock_date
+    FROM (
+        SELECT fbo.date AS stock_date
+        FROM dbt.mp_core__fbo_warehouse_all fbo
+        WHERE fbo.date <= '{requested_stock_date.isoformat()}'
+          AND fbo.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+        GROUP BY fbo.date
+        HAVING SUM(COALESCE(fbo.fbo, 0)) > 0
+    ) dated_stock
     """
     rows = db.query(sql)
     if not rows or not rows[0].get("stock_date"):
@@ -617,14 +625,17 @@ def resolve_stock_date(db: McpSql, requested_stock_date: date) -> date:
 def query_niche_stocks(db: McpSql, stock_date: date):
     sql = f"""
     WITH stock_by_sku AS (
-        SELECT CAST(stock.sku AS UNSIGNED) AS sku_num,
-               stock.account_id,
-               SUM(COALESCE(stock.fbo_real, 0)) AS current_stock
-        FROM mp.mp_core__realtime_stocks_data stock
-        WHERE stock.date = '{stock_date.isoformat()}'
-          AND stock.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
-          AND stock.sku REGEXP '^[0-9]+$'
-        GROUP BY sku_num, stock.account_id
+        SELECT CAST(fbo.sku AS UNSIGNED) AS sku_num,
+               card_all.account_id,
+               SUM(COALESCE(fbo.fbo, 0)) AS current_stock
+        FROM dbt.mp_core__fbo_warehouse_all fbo
+        JOIN dbt.mp_core__card_all card_all
+          ON card_all.mp COLLATE utf8mb4_unicode_ci = fbo.mp COLLATE utf8mb4_unicode_ci
+         AND card_all.card_id = fbo.card_id
+         AND card_all.sku = fbo.sku
+        WHERE fbo.date = '{stock_date.isoformat()}'
+          AND fbo.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+        GROUP BY sku_num, card_all.account_id
     ),
     card_category AS (
         SELECT CAST(card.sku AS UNSIGNED) AS sku_num,

@@ -40,7 +40,7 @@ const REPORTS = {
     workflowEnv: "GITHUB_XWAY_LIMIT_WORKFLOW_ID",
     defaultWorkflowId: "xway-limit-notifications.yml",
     defaultRunLabel: "08:30 по МСК",
-    cron: "30 5 * * 1",
+    cron: "30 5 * * MON",
   },
   report: {
     key: "report",
@@ -192,7 +192,7 @@ function reportByCommand(text) {
 }
 
 function reportByCron(cron) {
-  return Object.values(REPORTS).find((report) => report.cron && report.cron === cron) || REPORTS.fbo;
+  return Object.values(REPORTS).find((report) => report.cron && report.cron === cron) || null;
 }
 
 function reportByPayload(payload, url) {
@@ -349,6 +349,19 @@ export default {
 
   async scheduled(controller, env, ctx) {
     const report = reportByCron(controller?.cron);
+    if (!report) {
+      console.error(
+        JSON.stringify({
+          ok: false,
+          source: "cloudflare-cron",
+          error: "unsupported cron",
+          cron: controller?.cron || null,
+          skippedAt: new Date().toISOString(),
+        }),
+      );
+      return;
+    }
+
     ctx.waitUntil(
       dispatchWorkflow(env, "cloudflare-cron", {
         report_run_label: report.defaultRunLabel,
