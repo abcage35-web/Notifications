@@ -136,9 +136,9 @@ def load_valid_wb_stock_snapshot(db, report_date=None):
     stock_days = db.query(
         f"""
         SELECT date,
-               SUM(COALESCE(fbo_real, 0)) AS total_fbo,
-               COUNT(DISTINCT CASE WHEN COALESCE(fbo_real, 0) > 0 THEN sku END) AS positive_skus
-        FROM mp.mp_core__realtime_stocks_data
+               SUM(COALESCE(fbo, 0)) AS total_fbo,
+               COUNT(DISTINCT CASE WHEN COALESCE(fbo, 0) > 0 THEN sku END) AS positive_skus
+        FROM dbt.mp_core__fbo_warehouse_all
         WHERE mp = 'wb'
           AND date >= DATE('{report_date.isoformat()}') - INTERVAL {STOCK_LOOKBACK_DAYS} DAY
           AND date <= DATE('{report_date.isoformat()}')
@@ -661,8 +661,8 @@ def main():
             stock_snapshot = load_valid_wb_stock_snapshot(db)
             stock_rows = db.query(
                 f"""
-                SELECT CAST(sku AS CHAR) AS sku, SUM(fbo_real) AS fbo_current
-                FROM mp.mp_core__realtime_stocks_data
+                SELECT CAST(sku AS CHAR) AS sku, SUM(fbo) AS fbo_current
+                FROM dbt.mp_core__fbo_warehouse_all
                 WHERE mp = 'wb'
                   AND date = '{stock_snapshot['date'].isoformat()}'
                   AND CAST(sku AS UNSIGNED) IN ({stock_num_sql})

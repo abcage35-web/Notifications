@@ -10,6 +10,20 @@ import build_action_report as actions
 
 
 class StockSnapshotGuardTest(unittest.TestCase):
+    def test_loads_stock_snapshot_from_dbt_fbo_warehouse(self):
+        db = mock.Mock()
+        db.query.return_value = [
+            {"date": "2026-07-17", "total_fbo": 170_812, "positive_skus": 302}
+        ]
+
+        snapshot = actions.fbo.load_valid_wb_stock_snapshot(db, date(2026, 7, 17))
+
+        sql = db.query.call_args.args[0]
+        self.assertIn("dbt.mp_core__fbo_warehouse_all", sql)
+        self.assertIn("SUM(COALESCE(fbo, 0))", sql)
+        self.assertNotIn("mp.mp_core__realtime_stocks_data", sql)
+        self.assertEqual(snapshot["date"], date(2026, 7, 17))
+
     def test_uses_current_healthy_snapshot(self):
         snapshot = actions.fbo.choose_wb_stock_snapshot(
             [

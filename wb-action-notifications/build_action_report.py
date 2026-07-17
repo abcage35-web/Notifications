@@ -118,8 +118,8 @@ def load_base_rows(db):
     rows = db.query(
         f"""
         WITH latest_stocks AS (
-            SELECT CAST(sku AS CHAR) AS sku, SUM(fbo_real) AS fbo_current
-            FROM mp.mp_core__realtime_stocks_data
+            SELECT CAST(sku AS CHAR) AS sku, SUM(fbo) AS fbo_current
+            FROM dbt.mp_core__fbo_warehouse_all
             WHERE mp = 'wb'
               AND date = '{stock_snapshot['date'].isoformat()}'
             GROUP BY sku
