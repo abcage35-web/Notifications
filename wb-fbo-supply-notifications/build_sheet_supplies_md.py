@@ -361,7 +361,8 @@ SUPPLY_SHEET_SOURCES = [
         "csv_url": "https://docs.google.com/spreadsheets/d/1kLX5hGPK3g8HRno39POiHheg9UIFXNkKQGKcpAXX1KM/gviz/tq?tqx=out:csv&gid=1978923499&range=C:O",
     },
 ]
-# Indexes inside Google Sheets range C:O: 0=date, 9=product text, 10=vendor article, 11=barcode, 12=qty.
+# Indexes inside Google Sheets range C:O: 0=plan date, 1=fact date,
+# 9=product text, 10=vendor article, 11=barcode, 12=qty.
 
 def sheet_serial_to_date(serial):
     return date(1899, 12, 30) + timedelta(days=int(serial))
@@ -383,6 +384,12 @@ def parse_sheet_date(value):
         except ValueError:
             continue
     return None
+
+
+def supply_sheet_row_date(row):
+    fact_date = parse_sheet_date(row[1]) if len(row) > 1 else None
+    plan_date = parse_sheet_date(row[0]) if row else None
+    return fact_date or plan_date
 
 
 def to_int(value):
@@ -568,7 +575,7 @@ def main():
     for row in supply_sheet_rows:
         if len(row) < 13:
             continue
-        row_date = parse_sheet_date(row[0])
+        row_date = supply_sheet_row_date(row)
         if not row_date or row_date <= START:
             continue
         product = str(row[9]).strip()
@@ -862,7 +869,8 @@ def main():
     lines.append(
         f"_Источник: `сегодня` - принятые товары WB за {(START - timedelta(days=1)).strftime('%d.%m.%Y')}"
         f" и {START.strftime('%d.%m.%Y')} по `count_fact`, одним списком с суммированием по артикулу; "
-        "будущие дни - Google Sheets `Поставки ФБО МП`, вкладки `ВБ. Новый` и `ВБ. Регионы`, колонки C, L:M, O; "
+        "будущие дни - Google Sheets `Поставки ФБО МП`, вкладки `ВБ. Новый` и `ВБ. Регионы`, "
+        "дата = факт дата из колонки D, если она заполнена, иначе план дата из колонки C; товары/количество - колонки L:O; "
         "менеджер - Google Sheets `Репрайсер MVP`, лист `РАБОЧИЙ ЛИСТ`, колонки C и F._"
     )
     lines.append("")
