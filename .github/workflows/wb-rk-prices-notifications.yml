@@ -46,12 +46,17 @@ jobs:
         run: python -m unittest -v test_stock_snapshot_guard.py
 
       - name: Send FBO supply report
+        id: fbo_report
+        continue-on-error: true
         working-directory: wb-fbo-supply-notifications
         env:
           PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID }}
         run: python send_pachca_report.py
 
       - name: Send WB action report
+        id: action_report
+        if: always()
+        continue-on-error: true
         working-directory: wb-action-notifications
         env:
           PACHCA_CHAT_ID: ${{ inputs.pachca_chat_id || secrets.PACHCA_CHAT_ID_ACTIONS || secrets.PACHCA_CHAT_ID || '39363429' }}
@@ -68,3 +73,7 @@ jobs:
             wb-action-notifications/pachca_wb_actions_*.md
             wb-action-notifications/pachca_wb_actions_*.json
           if-no-files-found: ignore
+
+      - name: Fail if any report failed
+        if: always() && (steps.fbo_report.outcome == 'failure' || steps.action_report.outcome == 'failure')
+        run: exit 1
