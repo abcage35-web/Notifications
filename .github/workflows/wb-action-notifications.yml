@@ -26,6 +26,7 @@ jobs:
         working-directory: wb-action-notifications
     env:
       REPORT_TZ: Asia/Tbilisi
+      ABCAGE_ANALYZER_MCP_URL: ${{ vars.ABCAGE_ANALYZER_MCP_URL || 'https://mcp.mpvibe.ru/mcp/analyzer' }}
       ABCAGE_ANALYZER_TOKEN: ${{ secrets.ABCAGE_ANALYZER_TOKEN }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       PACHCA_TOKEN: ${{ secrets.PACHCA_TOKEN }}

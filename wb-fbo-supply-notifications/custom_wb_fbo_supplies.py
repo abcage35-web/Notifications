@@ -2,10 +2,11 @@
 import json
 import os
 import re
+import selectors
 import subprocess
 import sys
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -18,6 +19,8 @@ ROOT = Path(__file__).resolve().parent
 START = datetime.now(ZoneInfo(os.getenv("REPORT_TZ", "Asia/Tbilisi"))).date()
 END = START + timedelta(days=2)
 CHAT_ID = int(os.getenv("PACHCA_CHAT_ID", "39363429"))
+ANALYZER_MCP_URL = os.getenv("ABCAGE_ANALYZER_MCP_URL", "https://mcp.mpvibe.ru/mcp/analyzer")
+MCP_RESPONSE_TIMEOUT_SECONDS = float(os.getenv("MCP_RESPONSE_TIMEOUT_SECONDS", "90"))
 
 
 def codex_analyzer_token() -> str:
@@ -34,19 +37,21 @@ def codex_analyzer_token() -> str:
 class McpSql:
     def __init__(self):
         env = os.environ.copy()
-        env["ABCAGE_ANALYZER_TOKEN"] = codex_analyzer_token()
+        self._token = codex_analyzer_token()
+        self._stderr_tail = deque(maxlen=40)
+        env["ABCAGE_ANALYZER_TOKEN"] = self._token
         self.proc = subprocess.Popen(
             [
                 "npx",
                 "-y",
                 "mcp-remote",
-                "https://mcp.mpvibe.ru/mcp/analyzer",
+                ANALYZER_MCP_URL,
                 "--header",
                 "Authorization: Bearer ${ABCAGE_ANALYZER_TOKEN}",
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
             env=env,
             bufsize=1,
@@ -73,23 +78,56 @@ class McpSql:
         self.proc.stdin.write(json.dumps(msg, ensure_ascii=False) + "\n")
         self.proc.stdin.flush()
 
+    def _redact(self, text: str) -> str:
+        return text.replace(self._token, "***") if self._token else text
+
+    def _stderr_excerpt(self) -> str:
+        if not self._stderr_tail:
+            return ""
+        return " Last mcp-remote stderr: " + " | ".join(self._stderr_tail)
+
+    def _drain_stderr(self) -> None:
+        if self.proc.stderr is None:
+            return
+        tail = self.proc.stderr.read()
+        for line in tail.splitlines():
+            self._stderr_tail.append(self._redact(line.strip()))
+
     def _read_id(self, msg_id: int) -> dict:
         assert self.proc.stdout is not None
-        deadline = time.time() + 90
-        while time.time() < deadline:
-            line = self.proc.stdout.readline()
-            if not line:
-                continue
-            line = line.strip()
-            if not line.startswith("{"):
-                continue
-            try:
-                data = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if data.get("id") == msg_id:
-                return data
-        raise TimeoutError(f"MCP response timeout for id {msg_id}")
+        selector = selectors.DefaultSelector()
+        selector.register(self.proc.stdout, selectors.EVENT_READ, "stdout")
+        if self.proc.stderr is not None:
+            selector.register(self.proc.stderr, selectors.EVENT_READ, "stderr")
+        try:
+            deadline = time.time() + MCP_RESPONSE_TIMEOUT_SECONDS
+            while time.time() < deadline:
+                remaining = max(0.1, min(1, deadline - time.time()))
+                for key, _ in selector.select(timeout=remaining):
+                    line = key.fileobj.readline()
+                    if not line:
+                        continue
+                    line = line.strip()
+                    if key.data == "stderr":
+                        self._stderr_tail.append(self._redact(line))
+                        continue
+                    if not line.startswith("{"):
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if data.get("id") == msg_id:
+                        return data
+                if self.proc.poll() is not None:
+                    self._drain_stderr()
+                    raise RuntimeError(
+                        f"MCP process exited before response for id {msg_id} "
+                        f"(exit code {self.proc.returncode}).{self._stderr_excerpt()}"
+                    )
+        finally:
+            selector.close()
+        raise TimeoutError(f"MCP response timeout for id {msg_id}.{self._stderr_excerpt()}")
 
     def query(self, sql: str):
         msg_id = self.next_id
