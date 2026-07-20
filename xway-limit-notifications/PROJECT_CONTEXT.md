@@ -42,7 +42,7 @@ start = end - 2 дня
 - `GET /api/adv/shop/{shop_id}/product/list-stat`
 - `GET /api/adv/shop/{shop_id}/product/{product_id}/stata`
 - `POST /api/adv/shop/{shop_id}/product/{product_id}/campaign/{campaign_id}/status-pause-history`
-- `GET /api/adv/shop/{shop_id}/product/{product_id}/campaign/{campaign_id}/retrieve-ac-exclude-rule`
+- `GET /api/adv/shop/{shop_id}/product/{product_id}/campaign/{campaign_id}/exclude-rule`
 - `GET /api/adv/shop/{shop_id}/product/{product_id}/campaign/{campaign_id}/normquery-stats`
 
 XWAY авторизация передается через `XWAY_STORAGE_STATE_JSON`, `XWAY_STORAGE_STATE_BASE64`, `XWAY_COOKIE_HEADER` или `XWAY_SESSIONID`.
@@ -105,8 +105,11 @@ H = тег маркетолога
 
 - правило отсутствует;
 - правило выключено;
-- режим условий включен, но условий нет;
+- `is_active != true`;
+- режим `CONDITIONS` включен, но нет активных правил с условиями;
 - прочий `configured=false`.
+
+Ответ актуального метода `/exclude-rule` читается по полям `is_active`, `mode` и `rules`. Режим `EXCLUDE_ALL_UNFIXED` при `is_active=true` считается настроенным даже при пустом массиве `rules`.
 
 Дополнительные фильтры:
 
@@ -117,6 +120,13 @@ H = тег маркетолога
 
 - `Кластеры с тратами`: `expense > 0` и `excluded != true`;
 - `Зафиксированные кластеры`: `fixed = true`.
+
+Итоговая таблица агрегируется по WB-артикулу:
+
+- одна строка = один уникальный SKU;
+- `Где требуется корректировка` перечисляет проблемные типы РК и причины;
+- `Кол-во проблем` равно числу уникальных типов РК с ненастроенным автоисключением;
+- расходы, заказы и количества кластеров суммируются по проблемным кампаниям товара.
 
 ## Секреты GitHub
 

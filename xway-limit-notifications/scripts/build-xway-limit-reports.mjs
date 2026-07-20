@@ -575,6 +575,7 @@ async function buildAutoExclusionRows(client, items) {
       const problem = autoRuleProblem(rule, ruleError);
       return {
         ...item,
+        campaignId: id,
         campaignType: type,
         problem: problem.problem,
         ruleText: problem.rule,
@@ -587,11 +588,10 @@ async function buildAutoExclusionRows(client, items) {
     return rows.filter(Boolean);
   });
 
-  const rows = itemRows
-    .flat()
+  const rows = aggregateAutoExclusionRows(itemRows.flat())
     .sort((left, right) => {
-      const configuredDiff = String(left.problem).localeCompare(String(right.problem), "ru");
-      if (configuredDiff) return configuredDiff;
+      const problemDiff = right.problemCount - left.problemCount;
+      if (problemDiff) return problemDiff;
       const spendDiff = right.spend - left.spend;
       if (spendDiff) return spendDiff;
       const fboDiff = right.fbo - left.fbo;
@@ -609,7 +609,67 @@ async function buildAutoExclusionRows(client, items) {
   };
 }
 
-function baseTableCells(row) {
+export function aggregateAutoExclusionRows(rows) {
+  const byArticle = new Map();
+
+  for (const row of rows) {
+    const article = String(row?.article || "").trim();
+    if (!article) continue;
+
+    let aggregate = byArticle.get(article);
+    if (!aggregate) {
+      aggregate = {
+        ...row,
+        issueGroups: new Map(),
+        seenCampaigns: new Set(),
+        clustersWithSpend: 0,
+        fixedClusters: 0,
+        spend: 0,
+        orders: 0,
+      };
+      byArticle.set(article, aggregate);
+    }
+
+    const campaignKey = row.campaignId === null || row.campaignId === undefined
+      ? `${row.shopId || ""}:${row.productId || ""}:${row.campaignType || ""}:${row.problem || ""}:${row.ruleText || ""}`
+      : `${row.shopId || ""}:${row.productId || ""}:${row.campaignId}`;
+    if (!aggregate.seenCampaigns.has(campaignKey)) {
+      aggregate.seenCampaigns.add(campaignKey);
+      aggregate.clustersWithSpend += numberOrZero(row.clustersWithSpend);
+      aggregate.fixedClusters += numberOrZero(row.fixedClusters);
+      aggregate.spend += numberOrZero(row.spend);
+      aggregate.orders += numberOrZero(row.orders);
+    }
+
+    const campaignType = String(row.campaignType || "Тип РК не определен").trim();
+    let issueGroup = aggregate.issueGroups.get(campaignType);
+    if (!issueGroup) {
+      issueGroup = { campaignType, problems: new Set(), rules: new Set() };
+      aggregate.issueGroups.set(campaignType, issueGroup);
+    }
+    if (row.problem) issueGroup.problems.add(String(row.problem).trim());
+    if (row.ruleText) issueGroup.rules.add(String(row.ruleText).trim());
+  }
+
+  return [...byArticle.values()].map((aggregate) => {
+    const issueGroups = [...aggregate.issueGroups.values()].sort(
+      (left, right) => campaignTypeSortValue(left.campaignType) - campaignTypeSortValue(right.campaignType)
+        || left.campaignType.localeCompare(right.campaignType, "ru"),
+    );
+    const correctionPlaces = issueGroups.map((group) => {
+      const details = [...new Set([...group.problems, ...group.rules])].filter(Boolean);
+      return details.length ? `${group.campaignType}: ${details.join(", ")}` : group.campaignType;
+    });
+    const { issueGroups: _issueGroups, seenCampaigns: _seenCampaigns, ...row } = aggregate;
+    return {
+      ...row,
+      problemCount: issueGroups.length,
+      correctionPlaces,
+    };
+  });
+}
+
+function baseProductTableCells(row) {
   return [
     row.article,
     `[XWAY](${row.productUrl})`,
@@ -617,6 +677,12 @@ function baseTableCells(row) {
     mdCell(row.category),
     mdCell(row.marketer),
     fmtInt(row.fbo),
+  ];
+}
+
+function baseTableCells(row) {
+  return [
+    ...baseProductTableCells(row),
     mdCell(row.campaignType),
   ];
 }
@@ -717,9 +783,9 @@ function buildActivityMarkdown(rows, meta) {
 
 function buildAutoMarkdown(rows, meta) {
   const tableRows = rows.map((row) => [
-    ...baseTableCells(row),
-    mdCell(row.problem),
-    mdCell(row.ruleText),
+    ...baseProductTableCells(row),
+    mdCell(row.correctionPlaces.join("; ")),
+    fmtInt(row.problemCount),
     fmtInt(row.clustersWithSpend),
     fmtInt(row.fixedClusters),
     fmtMoney(row.spend),
@@ -739,9 +805,8 @@ function buildAutoMarkdown(rows, meta) {
         "Категория",
         "Маркетолог",
         "Остаток FBO",
-        "Тип РК",
-        "Проблема автоисключения поиска",
-        "Правило автоисключения",
+        "Где требуется корректировка",
+        "Кол-во проблем",
         "Кластеры с тратами за 3 дня",
         "Зафиксированные кластеры",
         "Расход за период",
@@ -751,7 +816,10 @@ function buildAutoMarkdown(rows, meta) {
     ),
     "",
     markdownNote([
-      `Строк с проблемами: ${rows.length}`,
+      `Уникальных SKU с проблемами: ${rows.length}`,
+      "Одна строка = один уникальный WB-артикул, без повторов по рекламным кампаниям",
+      "Кол-во проблем = число уникальных типов РК, где требуется настроить автоисключение",
+      "Где требуется корректировка = тип РК и причина проблемы по автоисключению",
       `Условие: Остаток FBO из БД > ${FBO_THRESHOLD}`,
       "Стартовый фильтр: только CPM РК ACTIVE/PAUSED; FROZEN и CPC исключаются до проверки деталей",
       "Фильтр строк: Расход за период > 0; для Единой ставки Кластеры с тратами за 3 дня > 0",
@@ -829,7 +897,7 @@ function buildPachcaThreadMessage() {
     "**Описание файлов:**",
     `• \`${path.basename(OUT_LIMITS)}\`: артикулы с РК, где не установлен лимит расхода или не настроено правило пополнения бюджета.`,
     `• \`${path.basename(OUT_ACTIVITY)}\`: артикулы с вылетами по лимиту расходов или нехватке бюджета за период отчета.`,
-    `• \`${path.basename(OUT_AUTO)}\`: РК с расходом, где не настроены автоисключения поиска; кластеры и расходы добавлены для проверки.`,
+    `• \`${path.basename(OUT_AUTO)}\`: уникальные SKU с расходом, где не настроены автоисключения поиска; в одной строке собраны типы РК и количество мест, требующих корректировки.`,
     `• \`${path.basename(OUT_INSTRUCTION)}\`: правила чтения отчетов, проверки строк и дальнейшие действия.`,
   ].join("\n");
 }

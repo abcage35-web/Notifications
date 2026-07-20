@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-xway-limit-reports.mjs",
-    "send": "node send_pachca_report.mjs"
+    "send": "node send_pachca_report.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "mcp-remote": "^0.1.31"

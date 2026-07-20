@@ -223,7 +223,7 @@ export class XwayApiClient {
   }
 
   campaignAutoExcludeRule(shopId, productId, campaignId) {
-    return this.requestJson(`/api/adv/shop/${shopId}/product/${productId}/campaign/${campaignId}/retrieve-ac-exclude-rule`, {
+    return this.requestJson(`/api/adv/shop/${shopId}/product/${productId}/campaign/${campaignId}/exclude-rule`, {
       referer: this.campaignUrl(shopId, productId, campaignId),
     });
   }
@@ -406,9 +406,12 @@ function boolOrNull(value) {
 export function normalizeAutoRule(source) {
   const payload = source?.result && typeof source.result === "object" ? source.result : source;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const mode = String(payload.mode || "").trim().toUpperCase() || null;
   return {
-    active: boolOrNull(payload.active),
+    active: boolOrNull(payload.is_active ?? payload.active),
     fixed: boolOrNull(payload.fixed),
+    mode,
+    rules: Array.isArray(payload.rules) ? payload.rules : [],
     boost: toNumber(payload.boost),
     efficiency: toNumber(payload.efficiency),
     popularity: toNumber(payload.popularity),
@@ -421,6 +424,10 @@ export function normalizeAutoRule(source) {
 
 export function isAutoRuleConfigured(rule) {
   if (!rule || rule.active !== true) return false;
+  if (rule.mode === "EXCLUDE_ALL_UNFIXED") return true;
+  if (rule.mode === "CONDITIONS") {
+    return rule.rules.some((item) => item?.is_frozen !== true && Array.isArray(item?.conditions) && item.conditions.length > 0);
+  }
   if (rule.fixed === false) return true;
   return (
     rule.boost !== null ||
@@ -437,6 +444,7 @@ export function autoRuleProblem(rule, error = null) {
   if (error) return { problem: "выключено", rule: "ошибка чтения правила" };
   if (!rule) return { problem: "выключено", rule: "правило не найдено" };
   if (rule.active === false) return { problem: "выключено", rule: "правило выключено" };
+  if (rule.mode === "CONDITIONS" && !isAutoRuleConfigured(rule)) return { problem: "нет условий", rule: "нет активных условий" };
   if (rule.fixed === true && !isAutoRuleConfigured(rule)) return { problem: "нет условий", rule: "нет условий" };
   return { problem: "не настроено", rule: "правило не настроено" };
 }

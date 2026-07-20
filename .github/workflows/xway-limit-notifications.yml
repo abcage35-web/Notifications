@@ -58,6 +58,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Run report tests
+        run: npm test
+
       - name: Build and send Pachca report
         run: npm run send
 
