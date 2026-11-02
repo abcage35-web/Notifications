@@ -1163,9 +1163,12 @@ def append_niche_summary(lines, summaries):
         lines.extend(["", f"**{SEASON_META[season_type]['summary'].upper()}**"])
         for summary in by_season[season_type]:
             revenue_emoji, drr_emoji = niche_statuses(summary)
+            revenue_label = fmt_compact_value(summary["revenue"], currency=True)
+            if summary["revenue_completion"] is not None:
+                revenue_label += f" · {fmt_percent_one(summary['revenue_completion'])} плана"
             lines.append(f"• **{md_cell(summary['category'])} · {summary['active_skus']} SKU**")
             lines.append(
-                f"• • `Выручка {revenue_emoji} {fmt_percent_one(summary['revenue_completion'])}` · "
+                f"• • `Выручка {revenue_emoji} {revenue_label}` · "
                 f"`ДРР {drr_emoji} {fmt_percent_one(summary['actual_drr'])} / "
                 f"{fmt_percent_one(summary['planned_drr'])}` · "
                 f"`💸 Доля трат {fmt_percent_one(summary['spend_share'])}` · "

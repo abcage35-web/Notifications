@@ -110,7 +110,7 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn(
             "**♾️ ВСЕСЕЗОННЫЕ**\n"
             "• **Массажеры электрические · 1 SKU**\n"
-            "• • `Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
+            "• • `Выручка 🟢 9,0 млн ₽ · 90,0% плана` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
             "`🔄 Оборачиваемость 713,3 дн.`",
             summary_message,
         )
@@ -122,6 +122,15 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", detail_message)
         self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", detail_message)
         self.assertIn("📦 FBO `6 420 шт.` — `713,3 дн.`", detail_message)
+
+    def test_summary_shows_actual_revenue_when_plan_is_unavailable(self):
+        rows = [row(10, 101, 123_400, 12_340, 90, plan_rub=0, plan_qty=0, planned_drr=0)]
+
+        message = build_niche_summary_message(rows, date(2026, 7, 10))
+
+        self.assertIn("`Выручка ⚪ 123,4 тыс. ₽`", message)
+        self.assertNotIn("Выручка ⚪ -", message)
+        self.assertIn("`ДРР ⚪ 10,0% / -`", message)
 
     def test_summary_combines_marketers_in_one_season_group_sorted_by_spend(self):
         rows = [
