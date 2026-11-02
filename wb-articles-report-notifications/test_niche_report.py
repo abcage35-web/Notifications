@@ -102,11 +102,13 @@ class NicheReportTest(unittest.TestCase):
             {"Массажеры электрические": 6420},
         )
 
-        self.assertIn("**Сводная по маркетологам**", summary_message)
+        self.assertIn("**Сводная по нишам**", summary_message)
+        self.assertNotIn("маркетолог", summary_message.lower())
+        self.assertNotIn("@", summary_message)
         self.assertNotIn("**Детализация по нишам**", summary_message)
         self.assertIn("**♾️ ВСЕСЕЗОННЫЕ**", summary_message)
         self.assertIn(
-            "@a.beaver\n**♾️ ВСЕСЕЗОННЫЕ**\n"
+            "**♾️ ВСЕСЕЗОННЫЕ**\n"
             "• **Массажеры электрические · 1 SKU**\n"
             "• • `Выручка 🟢 90,0%` · `ДРР 🟢 8,0% / 8,0%` · `💸 Доля трат 100,0%` · "
             "`🔄 Оборачиваемость 713,3 дн.`",
@@ -120,6 +122,23 @@ class NicheReportTest(unittest.TestCase):
         self.assertIn("🎯 ДРР `8,0% / 8,0%` — траты `720,0 тыс. ₽`", detail_message)
         self.assertIn("🛒 Заказы `90,0%` — `90 / 100`", detail_message)
         self.assertIn("📦 FBO `6 420 шт.` — `713,3 дн.`", detail_message)
+
+    def test_summary_combines_marketers_in_one_season_group_sorted_by_spend(self):
+        rows = [
+            row(10, 101, 100_000, 1000, 10, plan_rub=310_000, plan_qty=310,
+                planned_drr=8, category="Гантели"),
+            row(10, 102, 100_000, 3000, 10, plan_rub=310_000, plan_qty=310,
+                planned_drr=8, category="Массажеры электрические"),
+            row(10, 103, 100_000, 2000, 10, plan_rub=310_000, plan_qty=310,
+                planned_drr=8, category="Колготки"),
+        ]
+        message = build_niche_summary_message(rows, date(2026, 7, 10))
+        self.assertEqual(message.count("**♾️ ВСЕСЕЗОННЫЕ**"), 1)
+        self.assertEqual(message.count("**☀️ СЕЗОННЫЕ**"), 1)
+        self.assertNotIn("@", message)
+        self.assertLess(message.index("**☀️ СЕЗОННЫЕ**"), message.index("**♾️ ВСЕСЕЗОННЫЕ**"))
+        self.assertLess(message.index("• **Массажеры электрические"), message.index("• **Гантели"))
+        self.assertEqual(message.count(" SKU**"), 3)
 
     def test_status_matches_the_displayed_one_decimal_values(self):
         rows = [

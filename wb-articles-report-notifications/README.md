@@ -16,15 +16,15 @@ Daily WB article-level marketer report for Pachca.
 - `REPORT_RUN_LABEL` is shown in the message title, default is `09:00 по МСК`.
 - `REPORT_WINDOW_DAYS` controls the output window, default is `30`.
 - Rows are included only when there is finance revenue or RK spend. FBO is shown as a reference column, not as a filter.
-- The second root message contains the marketer/niche summary. Its thread covers MTD revenue/plan, DRR fact/plan, RK spend, orders fact/plan, current FBO and active SKU count.
+- The second root message contains the niche summary without marketer grouping or marketer mentions. Its thread covers MTD revenue/plan, DRR fact/plan, RK spend, orders fact/plan, current FBO and active SKU count.
 - Niche turnover is current FBO divided by average daily MTD orders and is displayed in days.
 - Active niche SKU means MTD finance revenue above 5,000 RUB or MTD RK spend above 5,000 RUB.
 - Niches with zero active SKU are omitted from the thread report.
 - Detailed niche metrics are sent only to the thread of the niche summary message.
-- Within each marketer, niches are grouped by season type; detailed headings place season type between niche name and active SKU count.
-- The marketer summary uses `•` / `• •` bullet levels like the root report and has blank lines only between marketers.
+- Niches are grouped only by season type, with one section per season type. Detailed headings place season type between niche name and active SKU count; the responsible marketer remains a niche attribute, not a grouping.
+- The niche summary uses `•` / `• •` bullet levels like the root report and blank lines between season sections.
 - Revenue and order plans are prorated through the report date; green revenue status starts at 90% completion, and green DRR means fact is not above plan.
-- Niches are sorted by spend share descending in both the marketer summary and the detail thread.
+- Niches are sorted by spend share descending within each season section in the summary and across all niches in the detail thread.
 
 Generated report files are ignored by git.
 
