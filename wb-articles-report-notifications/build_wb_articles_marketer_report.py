@@ -25,6 +25,7 @@ REPORT_RUN_LABEL = os.getenv("REPORT_RUN_LABEL", "09:00 по МСК")
 DEFAULT_WINDOW_DAYS = int(os.getenv("REPORT_WINDOW_DAYS", "30"))
 OLD_IP_REPORT_PATH = os.getenv("OLD_IP_REPORT_PATH", "")
 REVENUE_KEY = "finance_revenue"
+FINANCE_SOURCE = "dbt.mp_core__realtime_full_new"
 ACTIVE_NICHE_SKU_THRESHOLD = Decimal("5000")
 CATEGORY_MARKETER_NAMES = {
     "Сумки": "Саша М.",
@@ -438,11 +439,8 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
 
         UNION
 
-        SELECT DISTINCT fin.date AS date_at, fin.account_id, CAST(card.sku AS UNSIGNED) AS sku_num
-        FROM mp.mp_core__realtime_finance fin
-        JOIN mp.wb_core__card card
-          ON card.card_id = fin.card_id
-         AND card.account_id = fin.account_id
+        SELECT DISTINCT fin.date AS date_at, fin.account_id, CAST(fin.sku AS UNSIGNED) AS sku_num
+        FROM {FINANCE_SOURCE} fin
         WHERE fin.date BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
           AND fin.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
           AND COALESCE(fin.revenue, 0) <> 0
@@ -518,16 +516,13 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
     finance AS (
         SELECT fin.date,
                fin.account_id,
-               CAST(card.sku AS UNSIGNED) AS sku_num,
+               CAST(fin.sku AS UNSIGNED) AS sku_num,
                SUM(COALESCE(fin.revenue, 0)) AS finance_revenue,
                SUM(COALESCE(fin.margin, 0)) AS finance_margin
-        FROM mp.mp_core__realtime_finance fin
-        JOIN mp.wb_core__card card
-          ON card.card_id = fin.card_id
-         AND card.account_id = fin.account_id
+        FROM {FINANCE_SOURCE} fin
         JOIN key_skus k
-          ON k.sku_num = CAST(card.sku AS UNSIGNED)
-         AND k.account_id = card.account_id
+          ON k.sku_num = CAST(fin.sku AS UNSIGNED)
+         AND k.account_id = fin.account_id
         WHERE fin.date BETWEEN '{query_from.isoformat()}' AND '{date_to.isoformat()}'
           AND fin.mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
         GROUP BY fin.date, fin.account_id, sku_num
@@ -602,6 +597,41 @@ def query_rows(db: McpSql, query_from: date, date_to: date, stock_date: date):
     ORDER BY k.date_at, cabinet, category, k.sku_num;
     """
     return db.query(sql)
+
+
+def validate_finance_coverage(db: McpSql, rows, date_from: date, date_to: date):
+    """Do not send a partial SQL result or missing finance as zero revenue."""
+    source_rows = db.query(f"""
+        SELECT date AS date_at, account_id,
+               SUM(COALESCE(revenue, 0)) AS finance_revenue
+        FROM {FINANCE_SOURCE}
+        WHERE mp COLLATE utf8mb4_unicode_ci = 'wb' COLLATE utf8mb4_unicode_ci
+          AND date BETWEEN '{date_from.isoformat()}' AND '{date_to.isoformat()}'
+        GROUP BY date, account_id
+    """)
+    covered_days = {parse_date(str(row["date_at"])[:10]) for row in source_rows}
+    missing_days = []
+    day = date_from
+    while day <= date_to:
+        if day not in covered_days:
+            missing_days.append(day.isoformat())
+        day += timedelta(days=1)
+    if missing_days:
+        raise RuntimeError("Finance source has no data for: " + ", ".join(missing_days))
+
+    expected = {
+        (parse_date(str(row["date_at"])[:10]), int(row["account_id"])): dec(row[REVENUE_KEY])
+        for row in source_rows
+    }
+    actual = defaultdict(lambda: Decimal("0"))
+    for row in rows:
+        key = (parse_date(str(row["date_at"])[:10]), int(row["account_id"]))
+        actual[key] += dec(row[REVENUE_KEY])
+    for key in expected.keys() | actual.keys():
+        if actual[key] != expected.get(key, Decimal("0")):
+            raise RuntimeError(
+                f"Incomplete finance in report: date={key[0]}, account_id={key[1]}"
+            )
 
 
 def resolve_stock_date(db: McpSql, requested_stock_date: date) -> date:
@@ -980,7 +1010,8 @@ def metric_values(values):
 
 
 def drr_label(values):
-    return fmt_percent(values.get("drr"), blank_if_none=False)
+    value = values.get("drr")
+    return "нет данных" if value is None else fmt_percent(value)
 
 
 def spend_label(values):
@@ -1317,15 +1348,16 @@ def build_summary(rows, message_rows, date_from: date, date_to: date, stock_date
         "date_from": date_from.isoformat(),
         "date_to": date_to.isoformat(),
         "stock_date": stock_date.isoformat(),
+        "finance_source": FINANCE_SOURCE,
         "rows": len(rows),
         "skus": len({row["sku"] for row in rows}),
         "cabinets": len({row["cabinet"] for row in rows}),
         "revenue": str(total_revenue),
         "ad_spend": str(total_spend),
-        "drr": str(pct(total_spend, total_revenue) or Decimal("0")),
+        "drr": str(pct(total_spend, total_revenue)) if total_revenue else None,
         "current_month_revenue": str(current_revenue),
         "current_month_ad_spend": str(current_spend),
-        "current_month_drr": str(pct(current_spend, current_revenue) or Decimal("0")),
+        "current_month_drr": str(pct(current_spend, current_revenue)) if current_revenue else None,
     }
 
 
@@ -1356,6 +1388,7 @@ def main():
     try:
         stock_date = resolve_stock_date(db, requested_stock_date)
         raw_rows = query_rows(db, calculation_from, date_to, stock_date)
+        validate_finance_coverage(db, raw_rows, calculation_from, date_to)
         niche_stocks = query_niche_stocks(db, stock_date)
     finally:
         db.close()
